@@ -265,6 +265,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       TimeOfDay? time = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay.now(),
+                        builder: (context, child) => MediaQuery(
+                          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                          child: child!,
+                        ),
                       );
                       if (time != null) {
                         setModalState(() => selectedDate = DateTime(
@@ -276,7 +280,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   icon: const Icon(Icons.calendar_month),
                   label: Text(selectedDate == null 
                     ? "Select Reporting Date & Time" 
-                    : "Reporting: ${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year} ${selectedDate!.hour}:${selectedDate!.minute.toString().padLeft(2, '0')}"),
+                    : "Reporting: ${DateFormat('dd/MM/yyyy, hh:mm a').format(selectedDate!)}"),
                   style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
                 ),
 
@@ -293,7 +297,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     if (date != null) {
                       TimeOfDay? time = await showTimePicker(
                         context: context, 
-                        initialTime: const TimeOfDay(hour: 11, minute: 0)
+                        initialTime: const TimeOfDay(hour: 11, minute: 0),
+                        builder: (context, child) => MediaQuery(
+                          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                          child: child!,
+                        ),
                       );
                       setModalState(() {
                         if (time != null) {
