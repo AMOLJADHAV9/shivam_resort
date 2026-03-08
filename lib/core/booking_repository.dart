@@ -10,17 +10,7 @@ class BookingRepository {
         .where('status', whereIn: ['pre-booked', 'occupied', 'cleaning'])
         .snapshots()
         .map((snapshot) {
-          final now = DateTime.now();
-          
-          return snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).where((b) {
-            final status = b['status'];
-            if (status == 'cleaning') {
-              final cleaningUntil = (b['cleaningUntil'] as Timestamp?)?.toDate();
-              // Only keep if cleaning is still ongoing
-              return cleaningUntil != null && cleaningUntil.isAfter(now);
-            }
-            return true; // Keep all pre-booked and occupied
-          }).toList();
+          return snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
         });
   }
 
@@ -197,6 +187,19 @@ class BookingRepository {
       });
     } catch (e) {
       throw 'Failed to start cleaning: $e';
+    }
+  }
+
+  Future<void> extendCleaning(String bookingId, int minutes) async {
+    try {
+      final doc = await _firestore.collection('bookings').doc(bookingId).get();
+      final currentUntil = (doc.data()?['cleaningUntil'] as Timestamp?)?.toDate() ?? DateTime.now();
+      
+      await _firestore.collection('bookings').doc(bookingId).update({
+        'cleaningUntil': Timestamp.fromDate(currentUntil.add(Duration(minutes: minutes))),
+      });
+    } catch (e) {
+      throw 'Failed to extend cleaning: $e';
     }
   }
 

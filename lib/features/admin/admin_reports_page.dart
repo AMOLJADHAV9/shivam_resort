@@ -63,7 +63,7 @@ class _AdminReportsPageState extends ConsumerState<AdminReportsPage> {
             if (status == 'pre-booked') prebooked++;
             if (status == 'occupied') occupied++;
             if (status == 'cancelled') cancelled++;
-            if (status == 'checked-out') checkedOut++;
+            if (status == 'checked-out' || status == 'cleaning') checkedOut++;
           }
 
           return SingleChildScrollView(
@@ -296,7 +296,7 @@ class _AdminReportsPageState extends ConsumerState<AdminReportsPage> {
                 _generateFilteredReport(category, selectedCategory, selectedCapacities, allBookings);
               },
               icon: const Icon(Icons.picture_as_pdf),
-              label: const Text("GENERATE REPORT", style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text("GENERATE", style: TextStyle(fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -327,6 +327,8 @@ class _AdminReportsPageState extends ConsumerState<AdminReportsPage> {
       
       if (statusCategory == 'all') {
         filteredBookings = allBookings.where((b) => b['status'] != 'cancelled').toList();
+      } else if (statusCategory == 'checked-out') {
+        filteredBookings = allBookings.where((b) => b['status'] == 'checked-out' || b['status'] == 'cleaning').toList();
       } else {
         filteredBookings = allBookings.where((b) => b['status'] == statusCategory).toList();
       }

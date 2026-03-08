@@ -24,7 +24,11 @@ class CloudinaryService {
         return null;
       }
     } catch (e) {
-      print("Cloudinary Upload Error: $e");
+      if (e.toString().contains('401')) {
+        print("Cloudinary Authentication Error (401): Check your API Key and Secret.");
+      } else {
+        print("Cloudinary Upload Error: $e");
+      }
       return null;
     }
   }

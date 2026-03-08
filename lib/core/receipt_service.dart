@@ -46,7 +46,7 @@ class ReceiptService {
     final checkInAt = resolvedCheckIn;
     final checkOutAt = resolvedCheckOut;
     
-    final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
+    final dateFormat = DateFormat('dd/MM/yyyy, hh:mm a');
     
     // Stay Duration Calculation
     final chargingMode = booking['chargingMode'] ?? '24h';
@@ -116,7 +116,7 @@ class ReceiptService {
                       ),
                       pw.SizedBox(height: 5),
                       pw.Text("Receipt #: RE-${bookingId.substring(bookingId.length - 6).toUpperCase()}", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                      pw.Text("Date: ${DateFormat('dd MMM yyyy').format(DateTime.now())}", style: pw.TextStyle(fontSize: 10)),
+                      pw.Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}", style: pw.TextStyle(fontSize: 10)),
                     ],
                   ),
                 ],
@@ -375,7 +375,7 @@ class ReceiptService {
               Navigator.pop(context);
               generateAndPrintReceipt(booking, withGST: false);
             },
-            child: const Text("WITHOUT GST"),
+            child: const Text("STANDARD"),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -386,7 +386,7 @@ class ReceiptService {
               Navigator.pop(context);
               generateAndPrintReceipt(booking, withGST: true);
             },
-            child: const Text("WITH GST"),
+            child: const Text("GST INVOICE"),
           ),
         ],
       ),

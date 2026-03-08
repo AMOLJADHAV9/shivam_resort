@@ -9,7 +9,7 @@ class ReportService {
   // Modified to group same date + same customer bookings into single row
   static Future<void> generateCustomerReport(List<Map<String, dynamic>> bookings) async {
     final pdf = pw.Document();
-    final dateFormat = DateFormat('dd MMM yyyy');
+    final dateFormat = DateFormat('dd/MM/yyyy');
     final timeFormat = DateFormat('hh:mm a');
 
     // Sort bookings by reporting date (newest first), then by customer name

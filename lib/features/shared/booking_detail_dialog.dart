@@ -9,7 +9,7 @@ class BookingDetailDialog {
     const Color brandPurple = Color(0xFF673AB7);
     const Color brandGreen = Color(0xFF4CAF50);
     
-    final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
+    final dateFormat = DateFormat('dd/MM/yyyy, hh:mm a');
     final checkIn = (b['checkInAt'] as Timestamp?)?.toDate();
     final checkOut = (b['checkOutAt'] as Timestamp?)?.toDate();
     final reporting = (b['reportingDate'] as Timestamp?)?.toDate();

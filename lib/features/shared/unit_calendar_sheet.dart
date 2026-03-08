@@ -261,7 +261,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
                             const Icon(Icons.event_available, color: _brandGreen),
                             const SizedBox(width: 10),
                             Text(
-                              'Next available: ${DateFormat('dd MMM yyyy').format(nextFree)}',
+                              'Next available: ${DateFormat('dd/MM/yyyy').format(nextFree)}',
                               style: const TextStyle(fontWeight: FontWeight.w600, color: _brandGreen),
                             ),
                           ],
@@ -414,7 +414,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
                                 Expanded(
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     const Text('Check-in', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                                    Text(DateFormat('dd MMM yyyy').format(_rangeStart!),
+                                    Text(DateFormat('dd/MM/yyyy').format(_rangeStart!),
                                         style: const TextStyle(fontWeight: FontWeight.bold),
                                         overflow: TextOverflow.ellipsis),
                                   ]),
@@ -428,7 +428,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
                                     const Text('Check-out', style: TextStyle(fontSize: 11, color: Colors.grey)),
                                     Text(
                                       _rangeEnd != null
-                                          ? DateFormat('dd MMM yyyy').format(_rangeEnd!)
+                                          ? DateFormat('dd/MM/yyyy').format(_rangeEnd!)
                                           : 'Select end date',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
@@ -563,7 +563,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Bookings for ${DateFormat('dd MMM').format(_selectedDay)}",
+                "Bookings for ${DateFormat('dd/MM').format(_selectedDay)}",
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
               ),
               Container(
@@ -687,8 +687,8 @@ class _CurrentBookingCard extends StatelessWidget {
     final reportingTs = booking['reportingDate'] as Timestamp?;
     final reporting = reportingTs?.toDate();
 
-    final checkInStr = checkIn != null ? DateFormat('dd MMM yyyy').format(checkIn) : '—';
-    final checkOutStr = checkOut != null ? DateFormat('dd MMM yyyy').format(checkOut) : '—';
+    final checkInStr = checkIn != null ? DateFormat('dd/MM/yyyy').format(checkIn) : '—';
+    final checkOutStr = checkOut != null ? DateFormat('dd/MM/yyyy').format(checkOut) : '—';
 
     bool isOverdue = false;
     if (isPrebooked && booking['reportingDate'] != null) {

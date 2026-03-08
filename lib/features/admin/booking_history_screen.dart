@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_provider.dart';
-import '../../core/format_utils.dart';
 import '../shared/booking_detail_dialog.dart';
 
 class BookingHistoryScreen extends ConsumerStatefulWidget {
@@ -13,28 +12,21 @@ class BookingHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
 }
 
-class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   String _selectedStatus = "All";
   
   // Brand colors matching Admin UI
   static const Color brandPurple = Color(0xFF673AB7);
-  static const Color brandPink = Color(0xFFE91E63);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -51,7 +43,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> wit
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
+          preferredSize: const Size.fromHeight(70),
           child: Column(
             children: [
               // Search Bar
@@ -69,16 +61,6 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> wit
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
-              ),
-              TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.white,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: "TODAY"),
-                  Tab(text: "MONTH"),
-                  Tab(text: "HISTORY"),
-                ],
               ),
             ],
           ),
@@ -136,20 +118,8 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> wit
   }
 
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> bookings) {
-    final now = DateTime.now();
-    
     return bookings.where((b) {
-      final date = (b['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-      
-      // 1. Tab Filter
-      bool dateMatch = true;
-      if (_tabController.index == 0) { // Today
-        dateMatch = date.year == now.year && date.month == now.month && date.day == now.day;
-      } else if (_tabController.index == 1) { // Monthly
-        dateMatch = date.year == now.year && date.month == now.month;
-      }
-
-      // 2. Status Filter
+      // 1. Status Filter
       bool statusMatch = _selectedStatus == "All" || (b['status'] ?? "") == _selectedStatus;
 
       // 3. Search Filter
@@ -160,7 +130,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> wit
         searchMatch = name.contains(_searchQuery) || phone.contains(_searchQuery);
       }
 
-      return dateMatch && statusMatch && searchMatch;
+      return statusMatch && searchMatch;
     }).toList();
   }
 
@@ -203,7 +173,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> wit
                       style: const TextStyle(color: Colors.black54, fontSize: 12)
                     ),
                     Text(
-                      DateFormat('dd MMM yyyy, hh:mm a').format(date),
+                      DateFormat('dd/MM/yyyy, hh:mm a').format(date),
                       style: const TextStyle(color: Colors.grey, fontSize: 10),
                     ),
                   ],

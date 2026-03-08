@@ -273,7 +273,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   icon: const Icon(Icons.calendar_month),
                   label: Text(selectedDate == null 
                     ? "Select Reporting Date & Time" 
-                    : "Reporting: ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} ${selectedDate!.hour}:${selectedDate!.minute.toString().padLeft(2, '0')}"),
+                    : "Reporting: ${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year} ${selectedDate!.hour}:${selectedDate!.minute.toString().padLeft(2, '0')}"),
                   style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
                 ),
 
@@ -304,7 +304,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   icon: const Icon(Icons.logout),
                   label: Text(expectedCheckOutDate == null 
                     ? "Expected Check-Out Date & Time" 
-                    : "Check-Out: ${DateFormat('dd MMM yyyy, hh:mm a').format(expectedCheckOutDate!)}"),
+                    : "Check-Out: ${DateFormat('dd/MM/yyyy, hh:mm a').format(expectedCheckOutDate!)}"),
                   style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
                 ),
 
@@ -507,9 +507,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       'category': selectedCategory!,
                                       'capacity': selectedCapacity!,
                                       'unitNumber': selectedUnit!,
-                                      'reportingDate': Timestamp.fromDate(bookingCheckIn),
-                                      'checkOutDate': Timestamp.fromDate(bookingCheckOut),
-                                      'checkInAt': Timestamp.fromDate(bookingCheckIn),
+                                      'reportingDate': bookingCheckIn != null ? Timestamp.fromDate(bookingCheckIn) : null,
+                                      'checkOutDate': bookingCheckOut != null ? Timestamp.fromDate(bookingCheckOut) : null,
+                                      'checkInAt': bookingCheckIn != null ? Timestamp.fromDate(bookingCheckIn) : null,
                                       'roomRent': roomRent,
                                       'gstPercent': gstP,
                                       'gstAmount': gstA,
@@ -535,7 +535,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         }
 
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messengerKey.currentState?.showSnackBar(
                             SnackBar(backgroundColor: brandGreen, content: Text("Booking Saved for ${FormatUtils.formatUnit(selectedCategory, selectedUnit)}!")),
                           );
                         }
@@ -559,7 +559,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messengerKey.currentState?.showSnackBar(
                           SnackBar(content: Text("Error: $e")),
                         );
                       }
@@ -768,10 +768,13 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                          timeHint = 'Late Arrival';
                        }
                     } else if (status == 'cleaning' && booking['cleaningUntil'] != null) {
-                        final until = (booking['cleaningUntil'] as Timestamp).toDate();
-                        if (until.isAfter(now)) {
+                        final until = (booking['cleaningUntil'] as Timestamp?)?.toDate();
+                        if (until != null && until.isAfter(now)) {
                           final diff = until.difference(now);
                           timeHint = 'Cleaning ${diff.inMinutes}m left';
+                        } else {
+                          isOverdue = true;
+                          timeHint = 'Cleaning Overdue';
                         }
                     }
 
@@ -788,7 +791,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       textColor = Colors.white;
                       isSolid = true;
                     } else if (status == 'cleaning') {
-                      chipColor = Colors.blueGrey;
+                      chipColor = isOverdue ? Colors.orange[700]! : Colors.blueGrey;
                       textColor = Colors.white;
                       isSolid = true;
                     }
@@ -796,12 +799,13 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     // Build date-range sub-label for booked units
                     String dateLabel = '';
                     if (status != 'Available' && booking['reportingDate'] != null && booking['checkOutDate'] != null) {
-                      final fmt = (Timestamp t) {
+                      final fmt = (dynamic t) {
+                        if (t is! Timestamp) return '??';
                         final d = t.toDate();
                         const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                         return '${d.day} ${months[d.month]}';
                       };
-                      dateLabel = '${fmt(booking['reportingDate'] as Timestamp)} → ${fmt(booking['checkOutDate'] as Timestamp)}';
+                      dateLabel = '${fmt(booking['reportingDate'])} → ${fmt(booking['checkOutDate'])}';
                     }
 
                     return GestureDetector(
@@ -929,10 +933,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           children: [
             Text("Phone: ${booking['phone']}"),
             Text("Status: ${booking['status'].toUpperCase()}"),
-            if (booking['status'] == 'pre-booked')
-              Text("Reporting Date: ${(booking['reportingDate'] as Timestamp).toDate().toString().split(' ')[0]}"),
+            if (booking['status'] == 'pre-booked' && booking['reportingDate'] != null)
+              Text("Reporting Date: ${(booking['reportingDate'] as Timestamp?)?.toDate().toString().split(' ')[0]}"),
             if (booking['checkOutDate'] != null)
-              Text("Expected Check-Out: ${(booking['checkOutDate'] as Timestamp).toDate().toString().split(' ')[0]}"),
+              Text("Expected Check-Out: ${(booking['checkOutDate'] as Timestamp?)?.toDate().toString().split(' ')[0]}"),
             const SizedBox(height: 10),
             Text("Advance Paid: ₹${booking['advancePayment']}"),
           ],
@@ -968,25 +972,27 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
     );
   }
   Future<void> _confirmCheckInWithValidation(Map<String, dynamic> b) async {
+    final isCouple = b['customerType'] == 'Couple';
     final hasId = b['idProof'] != null && b['idProof'].toString().trim().isNotEmpty;
     
-    if (hasId) {
+    // For couple bookings, skip ID proof entirely
+    if (isCouple || hasId) {
       try {
         await ref.read(bookingRepositoryProvider).confirmCheckIn(b['id']);
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
+           messengerKey.currentState?.showSnackBar(
             SnackBar(backgroundColor: brandGreen, content: Text("Checked-in ${b['customerName']}!")),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+          messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Error: $e")));
         }
       }
       return;
     }
 
-    // Missing ID - Show specialized dialog
+    // Missing ID (Family booking) - Show specialized dialog
     final idController = TextEditingController();
     File? tempIdImage;
     File? tempIdImageBack;
@@ -1005,40 +1011,42 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
             children: [
               const Text("This was a pre-booking. Please fill in the ID Proof details and Guest Photo to proceed.", style: TextStyle(fontSize: 13, color: Colors.black54)),
               const SizedBox(height: 15),
-              TextField(
-                controller: idController, 
-                decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge), border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 15),
-              const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildIdSlot(
-                      label: "FRONT SIDE",
-                      file: tempIdImage,
-                      onTap: () async {
-                        final file = await _captureIdImage("ID Proof Front");
-                        if (file != null) setDialogState(() => tempIdImage = file);
-                      },
-                      onClear: () => setDialogState(() => tempIdImage = null),
+              if (b['customerType'] != 'Couple') ...[
+                TextField(
+                  controller: idController, 
+                  decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge), border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 15),
+                const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildIdSlot(
+                        label: "FRONT SIDE",
+                        file: tempIdImage,
+                        onTap: () async {
+                          final file = await _captureIdImage("ID Proof Front");
+                          if (file != null) setDialogState(() => tempIdImage = file);
+                        },
+                        onClear: () => setDialogState(() => tempIdImage = null),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildIdSlot(
-                      label: "BACK SIDE",
-                      file: tempIdImageBack,
-                      onTap: () async {
-                        final file = await _captureIdImage("ID Proof Back");
-                        if (file != null) setDialogState(() => tempIdImageBack = file);
-                      },
-                      onClear: () => setDialogState(() => tempIdImageBack = null),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildIdSlot(
+                        label: "BACK SIDE",
+                        file: tempIdImageBack,
+                        onTap: () async {
+                          final file = await _captureIdImage("ID Proof Back");
+                          if (file != null) setDialogState(() => tempIdImageBack = file);
+                        },
+                        onClear: () => setDialogState(() => tempIdImageBack = null),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 15),
               // Guest Photo row
               Row(
@@ -1086,8 +1094,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white),
               onPressed: isSavingLocal ? null : () async {
-                if (idController.text.trim().isEmpty) {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ID Proof is required")));
+                if (b['customerType'] != 'Couple' && idController.text.trim().isEmpty) {
+                   messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("ID Proof is required")));
                    return;
                 }
                 setDialogState(() => isSavingLocal = true);
@@ -1116,12 +1124,12 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   );
                   if (context.mounted) Navigator.pop(context);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messengerKey.currentState?.showSnackBar(
                       SnackBar(backgroundColor: brandGreen, content: Text("Checked-in ${b['customerName']}!")),
                     );
                   }
                 } catch (e) {
-                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                   if (context.mounted) messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Error: $e")));
                 } finally {
                   setDialogState(() => isSavingLocal = false);
                 }
@@ -1326,7 +1334,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                 await ref.read(bookingRepositoryProvider).startCleaning(booking['id']);
                                 _showReceiptPrompt(updatedBooking);
                               },
-                              child: const Text("NO, NEEDS CLEANING (2H)", style: TextStyle(color: Colors.orange)),
+                              child: const Text("CLEANING REQ.", style: TextStyle(color: Colors.orange)),
                             ),
                             ElevatedButton(
                               onPressed: () {
@@ -1334,14 +1342,14 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                 _showReceiptPrompt(updatedBooking);
                               },
                               style: ElevatedButton.styleFrom(backgroundColor: brandGreen),
-                              child: const Text("YES, IT'S CLEAN"),
+                              child: const Text("ALREADY CLEAN"),
                             ),
                           ],
                         ),
                       );
                     }
                   } catch (e) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                    if (context.mounted) messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Error: $e")));
                   }
                 },
                 child: const Text("CONFIRM CHECK-OUT"),
@@ -1374,33 +1382,118 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   }
 
   void _showFinishCleaningDialog(Map<String, dynamic> booking) {
+    final now = DateTime.now();
+    final until = (booking['cleaningUntil'] as Timestamp?)?.toDate();
+    final isOverdue = until != null && until.isBefore(now);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Unit Cleaning"),
+        title: Row(
+          children: [
+            Icon(Icons.cleaning_services, color: isOverdue ? Colors.orange[700] : brandPurple),
+            const SizedBox(width: 8),
+            const Text("Unit Cleaning"),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Unit: ${FormatUtils.formatUnit(booking['category'], booking['unitNumber'])}"),
-            const SizedBox(height: 10),
-            const Text("This unit is currently being cleaned. Has the cleaning been finished?"),
+            Text("Unit: ${FormatUtils.formatUnit(booking['category'], booking['unitNumber'])}", 
+                 style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 15),
+            if (isOverdue) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red[200]!)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text("CLEANING OVERDUE!", style: TextStyle(color: Colors.red[900], fontWeight: FontWeight.bold, fontSize: 13))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+            ],
+            Text(isOverdue 
+              ? "Cleaning was supposed to finish at ${DateFormat('hh:mm a').format(until!)}. Is it done now?"
+              : "Cleaning in progress. Estimated finish at ${DateFormat('hh:mm a').format(until!)}. Has it been finished early?"),
           ],
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NOT YET")),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showExtendCleaningDialog(booking);
+            },
+            child: Text(isOverdue ? "EXTEND TIME" : "NEEDS MORE TIME", style: const TextStyle(color: Colors.orange)),
+          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NOT YET", style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await ref.read(bookingRepositoryProvider).setAvailable(booking['id']);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Unit marked as available!")));
+                messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Unit marked as available!")));
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: brandGreen),
+            style: ElevatedButton.styleFrom(backgroundColor: brandGreen, foregroundColor: Colors.white),
             child: const Text("YES, IT'S READY"),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showExtendCleaningDialog(Map<String, dynamic> booking) {
+    int selectedMinutes = 30;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Extend Cleaning Time"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("How much more time is required?"),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 10,
+                children: [30, 60, 120].map((m) => ChoiceChip(
+                  label: Text(m >= 60 ? "${m ~/ 60}h" : "${m}m"),
+                  selected: selectedMinutes == m,
+                  selectedColor: brandPurple.withOpacity(0.2),
+                  onSelected: (val) {
+                    if (val) setDialogState(() => selectedMinutes = m);
+                  },
+                )).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await ref.read(bookingRepositoryProvider).extendCleaning(booking['id'], selectedMinutes);
+                  if (mounted) {
+                    messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Cleaning time extended by ${selectedMinutes}m")));
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Error: $e")));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white),
+              child: const Text("CONFIRM EXTENSION"),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1428,58 +1521,37 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
-            child: DefaultTabController(
-              length: 3,
-              child: Column(
-                children: [
-                  // Search & Filter Header
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: searchController,
-                            onChanged: (val) => setState(() => searchQuery = val),
-                            decoration: InputDecoration(
-                              hintText: "Search name or phone...",
-                              prefixIcon: const Icon(Icons.search),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                            ),
+            child: Column(
+              children: [
+                // Search & Filter Header
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          onChanged: (val) => setState(() => searchQuery = val),
+                          decoration: InputDecoration(
+                            hintText: "Search name or phone...",
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        _filterMenu(),
-                      ],
-                    ),
-                  ),
-
-                  // Categorization Tabs
-                  TabBar(
-                    labelColor: brandPurple,
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: brandPink,
-                    tabs: const [
-                      Tab(text: "Today"),
-                      Tab(text: "Month"),
-                      Tab(text: "Year"),
+                      ),
+                      const SizedBox(width: 8),
+                      _filterMenu(),
                     ],
                   ),
+                ),
 
-                  // Grouped Content
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _historyListGrouped(filteredList, "day"),
-                        _historyListGrouped(filteredList, "month"),
-                        _historyListGrouped(filteredList, "year"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                // Grouped Content - Now showing all history in one list
+                Expanded(
+                  child: _historyListGrouped(filteredList, "all"),
+                ),
+              ],
             ),
           ),
         );
@@ -1512,7 +1584,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   Widget _historyListGrouped(List<Map<String, dynamic>> items, String type) {
     final now = DateTime.now();
     List<Map<String, dynamic>> list = items.where((b) {
-      final date = (b['createdAt'] as Timestamp).toDate();
+      if (type == "all") return true; // Show all filtered items
+      final createdAt = b['createdAt'] as Timestamp?;
+      if (createdAt == null) return false;
+      final date = createdAt.toDate();
       if (type == "day") return date.day == now.day && date.month == now.month && date.year == now.year;
       if (type == "month") return date.month == now.month && date.year == now.year;
       return date.year == now.year;
@@ -1525,11 +1600,17 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
       itemCount: list.length,
       itemBuilder: (context, index) {
         final b = list[index];
+        final inDate = (b['checkInAt'] as Timestamp?)?.toDate() ?? (b['reportingDate'] as Timestamp?)?.toDate();
+        final outDate = (b['checkOutAt'] as Timestamp?)?.toDate() ?? (b['expectedCheckOutDate'] as Timestamp?)?.toDate();
+        final df = DateFormat('dd/MM/yyyy');
+
         final status = b['status']?.toString().toUpperCase() ?? 'UNKNOWN';
         Color color = Colors.grey;
         if (status == 'PRE-BOOKED') color = Colors.orange;
         if (status == 'OCCUPIED') color = brandGreen;
-        if (status == 'CHECKED-OUT') color = brandPurple;
+        if (status == 'CHECKED-OUT' || status == 'CLEANING') color = brandPurple;
+
+        final displayStatus = status == 'CLEANING' ? 'CHECKED-OUT' : status;
 
         return Card(
           elevation: 2,
@@ -1541,11 +1622,16 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
               backgroundColor: color.withOpacity(0.1),
               child: Icon(Icons.receipt_long, color: color),
             ),
-            title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("${b['category']} | Unit ${b['unitNumber']}\n${DateFormat('dd MMM yyyy').format((b['createdAt'] as Timestamp).toDate())}"),
+                Text(
+                  "${b['category']} | Unit ${b['unitNumber']}\nIn: ${inDate != null ? df.format(inDate) : '—'} | Out: ${outDate != null ? df.format(outDate) : '—'}",
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   _getPhaseString(b),
@@ -1556,7 +1642,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (status == 'CHECKED-OUT')
+                if (displayStatus == 'CHECKED-OUT')
                   IconButton(
                     icon: const Icon(Icons.print, color: brandPurple, size: 20),
                     onPressed: () => ReceiptService.showPrintOptions(context, b),
@@ -1567,7 +1653,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text("₹${b['advancePayment'] + (b['totalPayment'] ?? 0)}", style: TextStyle(color: brandPurple, fontWeight: FontWeight.bold)),
-                    Text(status, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+                    Text(displayStatus, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],
@@ -1586,11 +1672,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
     if (status == 'occupied') {
       return wasPrebooked ? "Pre-booked -> Checked-in" : "Direct Check-in";
     }
-    if (status == 'checked-out') {
+    if (status == 'checked-out' || status == 'cleaning') {
       return wasPrebooked ? "Pre-booked -> In -> Out" : "In -> Checked-out";
-    }
-    if (status == 'cleaning') {
-      return "Checked-out -> Cleaning Phase";
     }
     if (status == 'cancelled') {
       return wasPrebooked ? "Pre-booked -> Cancelled" : "Cancelled";
@@ -1627,8 +1710,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 labelColor: brandPurple,
                 indicatorColor: brandPink,
                 tabs: [
-                  Tab(text: "Today · ${DateFormat('dd MMM').format(now)}"),
-                  Tab(text: "Tomorrow · ${DateFormat('dd MMM').format(tomorrow)}"),
+                  Tab(text: "Today · ${DateFormat('dd/MM').format(now)}"),
+                  Tab(text: "Tomorrow · ${DateFormat('dd/MM').format(tomorrow)}"),
                 ],
               ),
               Expanded(
@@ -1680,7 +1763,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
             Icon(Icons.event_available, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 12),
             Text(
-              "No arrivals for ${DateFormat('dd MMM yyyy').format(target)}",
+              "No arrivals for ${DateFormat('dd/MM/yyyy').format(target)}",
               style: TextStyle(fontSize: 16, color: Colors.grey[500]),
             ),
           ],
@@ -1816,7 +1899,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       _infoChip(Icons.hotel, 'Unit ${b['unitNumber']}', Colors.blueGrey),
                                       _infoChip(Icons.category, b['category'] ?? '', Colors.blueGrey),
                                       if (checkOutDate != null)
-                                        _infoChip(Icons.logout, 'Out: ${DateFormat('dd MMM').format(checkOutDate)}', Colors.blueGrey),
+                                        _infoChip(Icons.logout, 'Out: ${DateFormat('dd/MM').format(checkOutDate)}', Colors.blueGrey),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -2175,10 +2258,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     await ref.read(bookingRepositoryProvider).setFoodBills(b['id'], finalItems);
                     if (context.mounted) {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Food bills updated successfully!")));
+                      messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Food bills updated successfully!")));
                     }
                   } catch (e) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                    if (context.mounted) messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Error: $e")));
                   } finally {
                     setDialogState(() => isUploading = false);
                   }
@@ -2274,7 +2357,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                             child: Icon(Icons.person, color: Colors.white, size: 18),
                           ),
                           title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text("Unit ${b['unitNumber']} | ${b['category']}\nOut at: ${DateFormat('hh:mm a').format((b['checkOutAt'] as Timestamp).toDate())}"),
+                          subtitle: Text("Unit ${b['unitNumber']} | ${b['category']}\nOut at: ${DateFormat('hh:mm a').format((b['checkOutAt'] as Timestamp?)?.toDate() ?? DateTime.now())}"),
                           trailing: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: brandPurple,
@@ -2313,12 +2396,13 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           if (status == 'pre-booked') prebooked++;
           if (status == 'occupied') occupied++;
           if (status == 'cancelled') cancelled++;
-          if (status == 'checked-out') checkedOut++;
+          if (status == 'checked-out' || status == 'cleaning') checkedOut++;
         }
 
         // Filter bookings for the PDF report
         final filteredBookings = bookings.where((b) {
           if (reportFilterStatus == "All") return b['status'] != 'cancelled';
+          if (reportFilterStatus == "checked-out") return b['status'] == 'checked-out' || b['status'] == 'cleaning';
           return b['status'] == reportFilterStatus;
         }).toList();
 
