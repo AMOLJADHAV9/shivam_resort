@@ -276,7 +276,7 @@ class ReceiptService {
                         if (gstAmount > 0)
                           _buildSummaryRow("GST ($gstPercent%)", gstAmount),
                         pw.Divider(color: PdfColors.grey300),
-                        _buildSummaryRow("GRAND TOTAL (Rent+GST)", grandTotal, isBold: true),
+                        _buildSummaryRow(gstAmount > 0 ? "GRAND TOTAL (Rent+GST)" : "GRAND TOTAL", grandTotal, isBold: true),
                       ],
                     ),
                   ),

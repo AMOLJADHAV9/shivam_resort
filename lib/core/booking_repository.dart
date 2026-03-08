@@ -69,6 +69,7 @@ class BookingRepository {
     String? idImageUrl,
     String? idImageBackUrl,
     String? guestPhotoUrl,
+    String customerType = 'Family',
     String? packageName,
     List<String>? packageInclusions,
   }) async {
@@ -98,6 +99,7 @@ class BookingRepository {
         'status': status,
         'chargingMode': chargingMode,
         'totalPeople': totalPeople,
+        'customerType': customerType,
         'wasPrebooked': status == 'pre-booked',
         'createdAt': FieldValue.serverTimestamp(),
         'idImageUrl': idImageUrl,

@@ -181,7 +181,7 @@ class BookingDetailDialog {
                 if (gstAmount > 0) _detailRow(brandPurple, Icons.percent, "GST ($gstPercent%)", "₹$gstAmount"),
                 _detailRow(brandPurple, Icons.pending_actions, "Remaining Rent", "₹$remainingRent"),
                 const Divider(),
-                _detailRow(brandPurple, Icons.receipt_long, "Grand Total (Rent+GST)", "₹${(roomRent + gstAmount).toStringAsFixed(0)}", isBold: true),
+                _detailRow(brandPurple, Icons.receipt_long, gstAmount > 0 ? "Grand Total (Rent+GST)" : "Grand Total", "₹${(roomRent + gstAmount).toStringAsFixed(0)}", isBold: true),
                 const SizedBox(height: 15),
                 if (foodTotal > 0) ...[
                   Container(

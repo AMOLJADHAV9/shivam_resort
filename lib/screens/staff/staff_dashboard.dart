@@ -39,6 +39,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   String? selectedCapacity;
   dynamic selectedUnit;
   String bookingType = "Prebook";
+  String customerType = "Family";
   DateTime? selectedDate;
   DateTime? expectedCheckOutDate;
   String chargingMode = "24h"; // 24h or flexible
@@ -49,7 +50,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   final idProofController = TextEditingController();
   final totalPeopleController = TextEditingController(text: "1");
   final rentController = TextEditingController();
-  final gstController = TextEditingController(text: "12"); // Default 12%
+  final remainingPaymentController = TextEditingController();
 
   // History State
   final searchController = TextEditingController();
@@ -95,7 +96,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
       "Royal Dine - 20 Persons": 1,
     },
     "Saptapadi Hall": {
-      "Mango Farm - 150-200 Persons": 1,
+      "Mango Farm - 150-200 Persons": [1],
+    },
+    "One Day Stay Package": {
+      "Standard Day Package": [1],
     },
   };
 
@@ -143,10 +147,22 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   ],
                 ),
 
+                // 2. Customer Type Selection
+                Wrap(
+                  spacing: 12,
+                  children: ["Family", "Couple"].map((type) => ChoiceChip(
+                    label: Text(type),
+                    selected: customerType == type,
+                    selectedColor: brandPink,
+                    onSelected: (val) => setModalState(() => customerType = type),
+                  )).toList(),
+                ),
+                const SizedBox(height: 10),
+
                 // 2. Input Fields
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: "Customer Name", prefixIcon: Icon(Icons.person))),
                 TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Phone Number", prefixIcon: Icon(Icons.phone))),
-                if (bookingType == "Confirmed") ...[
+                if (bookingType == "Confirmed" && customerType == "Family") ...[
                   TextField(controller: idProofController, decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge))),
                   const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                   const SizedBox(height: 10),
@@ -295,26 +311,16 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 TextField(controller: totalPeopleController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Total People", prefixIcon: Icon(Icons.groups))),
 
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: rentController, 
-                        keyboardType: TextInputType.number, 
-                        onChanged: (v) => setModalState(() {}),
-                        decoration: const InputDecoration(labelText: "Room Rent (₹)", prefixIcon: Icon(Icons.apartment))
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: gstController, 
-                        keyboardType: TextInputType.number, 
-                        onChanged: (v) => setModalState(() {}),
-                        decoration: const InputDecoration(labelText: "GST (%)", prefixIcon: Icon(Icons.percent))
-                      ),
-                    ),
-                  ],
+                TextField(
+                  controller: rentController, 
+                  keyboardType: TextInputType.number, 
+                  onChanged: (v) {
+                    final rent = double.tryParse(v) ?? 0.0;
+                    final adv = double.tryParse(paymentController.text) ?? 0.0;
+                    remainingPaymentController.text = (rent - adv).toStringAsFixed(0);
+                    setModalState(() {});
+                  },
+                  decoration: const InputDecoration(labelText: "Room Rent (₹)", prefixIcon: Icon(Icons.apartment))
                 ),
 
                 const SizedBox(height: 15),
@@ -322,9 +328,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 if (rentController.text.isNotEmpty) Builder(
                   builder: (context) {
                     final rent = double.tryParse(rentController.text) ?? 0.0;
-                    final gstP = double.tryParse(gstController.text) ?? 0.0;
-                    final gstA = (rent * gstP) / 100;
-                    final total = rent + gstA;
+                    final total = rent;
                     final adv = double.tryParse(paymentController.text) ?? 0.0;
                     final rem = total - adv;
 
@@ -337,10 +341,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       ),
                       child: Column(
                         children: [
-                          _calcRow("Base Rent", "₹${rent.toStringAsFixed(0)}"),
-                          _calcRow("GST ($gstP%)", "+ ₹${gstA.toStringAsFixed(0)}"),
-                          const Divider(),
-                          _calcRow("Grand Total", "₹${total.toStringAsFixed(0)}", isBold: true),
+                          _calcRow("Total Rent", "₹${total.toStringAsFixed(0)}", isBold: true),
                           _calcRow("Paid (Advance)", "- ₹${adv.toStringAsFixed(0)}"),
                           _calcRow("Balance Remaining", "₹${rem.toStringAsFixed(0)}", color: brandPink, isBold: true),
                         ],
@@ -352,10 +353,32 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 TextField(
                   controller: paymentController, 
                   keyboardType: TextInputType.number, 
-                  onChanged: (v) => setModalState(() {}),
+                  onChanged: (v) {
+                    final adv = double.tryParse(v) ?? 0.0;
+                    final rent = double.tryParse(rentController.text) ?? 0.0;
+                    remainingPaymentController.text = (rent - adv).toStringAsFixed(0);
+                    setModalState(() {});
+                  },
                   decoration: InputDecoration(
                     labelText: bookingType == "Prebook" ? "Advance Payment (₹)" : "Full Payment (₹)", 
                     prefixIcon: const Icon(Icons.payments_outlined)
+                  )
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: remainingPaymentController, 
+                  keyboardType: TextInputType.number, 
+                  onChanged: (v) {
+                    final rem = double.tryParse(v) ?? 0.0;
+                    final rent = double.tryParse(rentController.text) ?? 0.0;
+                    paymentController.text = (rent - rem).toStringAsFixed(0);
+                    setModalState(() {});
+                  },
+                  decoration: const InputDecoration(
+                    labelText: "Remaining Payment (₹)", 
+                    prefixIcon: Icon(Icons.pending_actions)
                   )
                 ),
 
@@ -378,7 +401,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       return;
                     }
                     
-                    if (bookingType == "Confirmed" && idProofController.text.trim().isEmpty) {
+                    if (bookingType == "Confirmed" && customerType == "Family" && idProofController.text.trim().isEmpty) {
                       if (context.mounted) {
                         messengerKey.currentState?.showSnackBar(
                           const SnackBar(content: Text("ID Proof is mandatory for confirmed bookings")),
@@ -419,10 +442,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       }
 
                       final roomRent = double.tryParse(rentController.text.trim()) ?? 0.0;
-                      final gstPercent = double.tryParse(gstController.text.trim()) ?? 0.0;
-                      final gstAmount = (roomRent * gstPercent) / 100;
+                      const gstPercent = 0.0;
+                      const gstAmount = 0.0;
                       final advance = double.tryParse(paymentController.text.trim()) ?? 0.0;
-                      final totalWithGst = roomRent + gstAmount;
+                      final totalWithGst = roomRent;
                       final remainingRent = totalWithGst - advance;
 
                       await ref.read(bookingRepositoryProvider).saveBooking(
@@ -445,6 +468,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         idImageUrl: idImageUrl,
                         idImageBackUrl: idImageBackUrl,
                         guestPhotoUrl: guestPhotoUrl,
+                        customerType: customerType,
+                        packageName: selectedCategory == "One Day Stay Package" ? selectedCapacity : null,
+                        packageInclusions: selectedCategory == "One Day Stay Package" ? ["Activity", "Food-Breakfast", "Lunch", "High Tea"] : null,
                       );
                       
                       if (mounted) {
@@ -469,10 +495,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     if (bookingCheckIn == null || bookingCheckOut == null) return;
 
                                     final roomRent = double.tryParse(rentController.text.trim()) ?? 0.0;
-                                    final gstP = double.tryParse(gstController.text.trim()) ?? 0.0;
-                                    final gstA = (roomRent * gstP) / 100;
+                                    const gstP = 0.0;
+                                    const gstA = 0.0;
                                     final advance = double.tryParse(paymentController.text.trim()) ?? 0.0;
-                                    final total = roomRent + gstA;
+                                    final total = roomRent;
 
                                     final bookingData = {
                                       'customerName': nameController.text.trim(),
@@ -495,6 +521,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       'idImageUrl': idImageUrl,
                                       'idImageBackUrl': idImageBackUrl,
                                       'guestPhotoUrl': guestPhotoUrl,
+                                      'customerType': customerType,
+                                      if (selectedCategory == "One Day Stay Package") 'packageName': selectedCapacity,
+                                      if (selectedCategory == "One Day Stay Package") 'packageInclusions': ["Activity", "Food-Breakfast", "Lunch", "High Tea"],
                                     };
                                     ReceiptService.showPrintOptions(context, bookingData);
                                   },
@@ -515,10 +544,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         phoneController.clear();
                         paymentController.clear();
                         rentController.clear();
-                        gstController.text = "12";
+                        remainingPaymentController.clear();
                         idProofController.clear();
                         totalPeopleController.text = "1";
                         setState(() {
+                          customerType = "Family";
                           selectedUnit = null;
                           selectedDate = null;
                           expectedCheckOutDate = null;

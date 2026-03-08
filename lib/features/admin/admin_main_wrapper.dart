@@ -124,9 +124,17 @@ class AdminDashboardContent extends ConsumerWidget {
           final staffList = staffListAsync.value ?? [];
           
           // Calculations
+          // Calculations: Exclude cancelled, include totalPayment for checked-out, and advancePayment for pre-booked/occupied
           double totalRevenue = bookings
-              .where((b) => b['status'] == 'checked-out')
-              .fold(0.0, (sum, b) => sum + (double.tryParse(b['totalPayment']?.toString() ?? '0') ?? 0.0));
+              .where((b) => b['status'] != 'cancelled')
+              .fold(0.0, (sum, b) {
+                if (b['status'] == 'checked-out') {
+                  return sum + (double.tryParse(b['totalPayment']?.toString() ?? '0') ?? 0.0);
+                } else {
+                  // For pre-booked or occupied, only count what has been paid so far (advance)
+                  return sum + (double.tryParse(b['advancePayment']?.toString() ?? '0') ?? 0.0);
+                }
+              });
           
           int activeBookings = bookings.where((b) => b['status'] == 'occupied').length;
           int preBooked = bookings.where((b) => b['status'] == 'pre-booked').length;

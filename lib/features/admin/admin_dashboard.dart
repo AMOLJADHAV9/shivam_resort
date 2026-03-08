@@ -154,7 +154,15 @@ class AdminDashboardContent extends StatelessWidget {
         String value = "...";
         if (snapshot.hasData) {
           if (isRevenue) {
-            double total = snapshot.data!.docs.fold(0, (prev, element) => prev + (element['totalPrice'] ?? 0));
+            double total = snapshot.data!.docs
+                .where((doc) => doc['status'] != 'cancelled')
+                .fold(0.0, (prev, doc) {
+                  if (doc['status'] == 'checked-out') {
+                    return prev + (double.tryParse(doc['totalPayment']?.toString() ?? '0') ?? 0.0);
+                  } else {
+                    return prev + (double.tryParse(doc['advancePayment']?.toString() ?? '0') ?? 0.0);
+                  }
+                });
             value = "₹${total.toStringAsFixed(0)}";
           } else {
             value = snapshot.data!.docs.length.toString();
