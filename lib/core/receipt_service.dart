@@ -269,20 +269,31 @@ class ReceiptService {
                     width: 200,
                     child: pw.Column(
                       children: [
-                        _buildSummaryRow("Room Rent", roomRent),
-                        _buildSummaryRow(
-                            isConfirmed ? "Full Payments" : "Advance Payments", advance),
-                        if (!isConfirmed && remainingRent > 0)
-                          _buildSummaryRow("Remaining Payments", remainingRent),
+                        _buildSummaryRow("Package", roomRent),
+                        _buildSummaryRow("Advance Payments", advance),
+                        _buildSummaryRow("Remaining Payments", remainingRent),
                         if (gstAmount > 0)
                           _buildSummaryRow("GST ($gstPercent% on Rent)", gstAmount),
                         if (foodTotal > 0)
                           _buildSummaryRow("Food & Services", foodTotal),
                         pw.Divider(color: PdfColors.grey300),
                         _buildSummaryRow(
-                          gstAmount > 0 ? "GRAND TOTAL (Rent+GST+Food)" : "GRAND TOTAL (Rent+Food)",
+                          "GRAND TOTAL",
                           grandTotal,
                           isBold: true,
+                        ),
+                        pw.SizedBox(height: 10),
+                        _buildSummaryRow("Balance Paid", balancePaidAtCheckout),
+                        _buildSummaryRow("Total Amount Paid", grandTotal, isBold: true),
+                        pw.SizedBox(height: 8),
+                        pw.Container(
+                          width: double.infinity,
+                          padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                          decoration: const pw.BoxDecoration(color: PdfColors.green50),
+                          child: pw.Center(
+                            child: pw.Text("PAYMENT STATUS: PAID", 
+                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green900)),
+                          ),
                         ),
                       ],
                     ),

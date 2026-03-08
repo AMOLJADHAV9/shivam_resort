@@ -319,6 +319,21 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
                 ),
 
+                if (selectedDate != null && expectedCheckOutDate != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.nights_stay, size: 16, color: brandPurple.withOpacity(0.7)),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Day Count: ${(expectedCheckOutDate!.difference(selectedDate!).inMinutes / (24 * 60.0)).ceil()} Day(s)",
+                          style: TextStyle(fontWeight: FontWeight.bold, color: brandPurple, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 TextField(controller: totalPeopleController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Total People", prefixIcon: Icon(Icons.groups))),
 
                 const SizedBox(height: 10),
@@ -370,9 +385,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     remainingPaymentController.text = (rent - adv).toStringAsFixed(0);
                     setModalState(() {});
                   },
-                  decoration: InputDecoration(
-                    labelText: bookingType == "Prebook" ? "Advance Payment (₹)" : "Full Payment (₹)", 
-                    prefixIcon: const Icon(Icons.payments_outlined)
+                  decoration: const InputDecoration(
+                    labelText: "Advance Payment (₹)", 
+                    prefixIcon: Icon(Icons.payments_outlined)
                   )
                 ),
 
@@ -412,14 +427,6 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       return;
                     }
                     
-                    if (bookingType == "Confirmed" && (selectedCategory == "Cottages" || selectedCategory == "Lodging Deluxe") && idProofController.text.trim().isEmpty) {
-                      if (context.mounted) {
-                        messengerKey.currentState?.showSnackBar(
-                          const SnackBar(content: Text("ID Proof is mandatory for confirmed bookings")),
-                        );
-                      }
-                      return;
-                    }
                     
                     setState(() => _isSaving = true);
                     try {
