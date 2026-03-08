@@ -48,14 +48,14 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
             role: profile['role'] ?? 'Staff',
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Profile updated successfully!")),
         );
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           SnackBar(content: Text("Update Failed: $e")),
         );
       }
@@ -138,14 +138,6 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF673AB7),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 5,
-                  ),
                   onPressed: _isSaving ? null : _updateProfile,
                   child: _isSaving
                       ? const CircularProgressIndicator(color: Colors.white)

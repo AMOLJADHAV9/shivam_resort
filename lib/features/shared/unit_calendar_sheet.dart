@@ -87,6 +87,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
 
   TimeOfDay _checkInTime = const TimeOfDay(hour: 10, minute: 0);
   TimeOfDay _checkOutTime = const TimeOfDay(hour: 11, minute: 0);
+  bool _isProcessing = false; // Add processing state
 
   Future<void> _selectTime(bool isCheckIn) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -115,7 +116,15 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
       DateTime cursor = DateTime(start.year, start.month, start.day);
       final endDay    = DateTime(end.year,   end.month,   end.day);
       while (!cursor.isAfter(endDay)) {
-        map[cursor] = b['status'] ?? 'occupied';
+        // If it's cleaning, we only want to mark the day it ends
+        if (b['status'] == 'cleaning') {
+           final until = (b['cleaningUntil'] as Timestamp?)?.toDate();
+           if (until != null) {
+             map[DateTime(until.year, until.month, until.day)] = 'cleaning';
+           }
+        } else {
+          map[cursor] = b['status'] ?? 'occupied';
+        }
         cursor = cursor.add(const Duration(days: 1));
       }
     }
@@ -220,9 +229,18 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
                   SliverToBoxAdapter(
                     child: _CurrentBookingCard(
                       booking: widget.currentBooking!,
-                      onCheckIn: () => widget.onCheckIn(widget.currentBooking!),
+                      isProcessing: _isProcessing,
+                      onCheckIn: () async {
+                        setState(() => _isProcessing = true);
+                        try { widget.onCheckIn(widget.currentBooking!); }
+                        finally { if (mounted) setState(() => _isProcessing = false); }
+                      },
                       onCheckOut: () => widget.onCheckOut(widget.currentBooking!),
-                      onCancel: (reason) => widget.onCancel(widget.currentBooking!, reason: reason),
+                      onCancel: (reason) async {
+                        setState(() => _isProcessing = true);
+                        try { widget.onCancel(widget.currentBooking!, reason: reason); }
+                        finally { if (mounted) setState(() => _isProcessing = false); }
+                      },
                     ),
                   ),
 
@@ -290,6 +308,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
                             final status = bookedMap[normalDay]!;
                             final color = status == 'pre-booked'
                                 ? Colors.orange
+                                : status == 'cleaning' ? Colors.blueGrey 
                                 : const Color(0xFFE91E63);
                             return Container(
                               margin: const EdgeInsets.all(4),
@@ -508,6 +527,11 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
       final status = b['status'];
       if (status == 'cancelled') return false;
       
+      // CRITICAL: Filter by the current unit being viewed
+      if (b['category'] != widget.category || b['unitNumber'] != widget.unitNumber) {
+        return false;
+      }
+      
       final start = (b['reportingDate'] as Timestamp?)?.toDate();
       final end = (b['checkOutDate'] as Timestamp?)?.toDate() ?? (b['reportingDate'] as Timestamp?)?.toDate();
       
@@ -521,6 +545,14 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
       return (targetD.isAtSameMomentAs(startD) || targetD.isAfter(startD)) && 
              (targetD.isAtSameMomentAs(endD) || targetD.isBefore(endD));
     }).toList();
+
+    // De-duplicate by ID (in case of double data or stream emits)
+    final Map<String, Map<String, dynamic>> uniqueMap = {};
+    for (var b in filtered) {
+      final id = b['id'] ?? b.hashCode.toString();
+      uniqueMap[id] = b;
+    }
+    final finalFiltered = uniqueMap.values.toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +574,7 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
             ],
           ),
         ),
-        if (filtered.isEmpty)
+        if (finalFiltered.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Text("Everything is available on this date.", style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic)),
@@ -553,9 +585,9 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemCount: filtered.length,
+              itemCount: finalFiltered.length,
               itemBuilder: (context, index) {
-                final b = filtered[index];
+                final b = finalFiltered[index];
                 final color = b['status'] == 'pre-booked' ? Colors.orange : _brandPink;
                 
                 return Container(
@@ -631,12 +663,14 @@ class _UnitCalendarSheetState extends ConsumerState<UnitCalendarSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 class _CurrentBookingCard extends StatelessWidget {
   final Map<String, dynamic> booking;
+  final bool isProcessing;
   final VoidCallback onCheckIn;
   final VoidCallback onCheckOut;
   final void Function(String? reason) onCancel;
 
   const _CurrentBookingCard({
     required this.booking,
+    required this.isProcessing,
     required this.onCheckIn,
     required this.onCheckOut,
     required this.onCancel,
@@ -760,8 +794,10 @@ class _CurrentBookingCard extends StatelessWidget {
                       minimumSize: Size.zero,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: onCheckIn,
-                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    onPressed: isProcessing ? null : onCheckIn,
+                    icon: isProcessing 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_outline, size: 16),
                     label: const Text('CONFIRM CHECK-IN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                 if (isPrebooked) ...[
@@ -800,7 +836,7 @@ class _CurrentBookingCard extends StatelessWidget {
                       minimumSize: Size.zero,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: onCheckOut,
+                    onPressed: isProcessing ? null : onCheckOut,
                     icon: const Icon(Icons.exit_to_app, size: 16),
                     label: const Text('CHECK-OUT NOW', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   ),

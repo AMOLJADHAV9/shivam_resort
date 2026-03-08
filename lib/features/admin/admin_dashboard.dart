@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'booking_history_screen.dart';
+import '../../screens/staff/staff_dashboard.dart';
 
 class AdminMainWrapper extends StatefulWidget {
   const AdminMainWrapper({super.key});
@@ -14,10 +15,11 @@ class _AdminMainWrapperState extends State<AdminMainWrapper> {
 
   // List of pages for the Admin
   final List<Widget> _pages = [
-    const AdminDashboardContent(), // Statistics Page
-    const BookingHistoryScreen(),  // History Page
-    const StaffManagementPage(), // Staff Management Page
-    const SettingsPage(), // Settings Page
+    const AdminDashboardContent(), // Stats
+    const StaffDashboard(isEmbedded: true), // Reception Features
+    const BookingHistoryScreen(),  // History
+    const StaffManagementPage(), // Staff
+    const SettingsPage(), // Settings
   ];
 
   @override
@@ -48,8 +50,12 @@ class _AdminMainWrapperState extends State<AdminMainWrapper> {
               label: 'Dashboard',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.room_service_rounded),
+              label: 'Reception',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long_rounded),
-              label: 'Bookings',
+              label: 'History',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.people_alt_rounded),
@@ -464,7 +470,7 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
         _phoneController.text.isEmpty ||
         _roleController.text.isEmpty ||
         _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messengerKey.currentState?.showSnackBar(
         const SnackBar(content: Text("Please fill all fields"), backgroundColor: Colors.red),
       );
       return;
@@ -485,7 +491,7 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
     _roleController.clear();
     _passwordController.clear();
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messengerKey.currentState?.showSnackBar(
       const SnackBar(content: Text("Staff added successfully!"), backgroundColor: brandGreen),
     );
   }
@@ -494,7 +500,7 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
     setState(() {
       staffList.removeAt(index);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
+    messengerKey.currentState?.showSnackBar(
       const SnackBar(content: Text("Staff deleted"), backgroundColor: Colors.orange),
     );
   }
@@ -724,7 +730,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: "Security Settings",
                     subtitle: "Manage security preferences",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messengerKey.currentState?.showSnackBar(
                         const SnackBar(content: Text("Security settings coming soon"), backgroundColor: Colors.blue),
                       );
                     },
@@ -737,7 +743,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: "Backup & Data",
                     subtitle: "Manage backups",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messengerKey.currentState?.showSnackBar(
                         const SnackBar(content: Text("Backup features coming soon"), backgroundColor: Colors.blue),
                       );
                     },
@@ -771,7 +777,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: "Help Center",
                     subtitle: "Get help and support",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messengerKey.currentState?.showSnackBar(
                         const SnackBar(content: Text("Help center opening..."), backgroundColor: Colors.blue),
                       );
                     },
@@ -909,7 +915,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messengerKey.currentState?.showSnackBar(
                 const SnackBar(content: Text("Profile updated successfully"), backgroundColor: brandGreen),
               );
             },
@@ -965,7 +971,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messengerKey.currentState?.showSnackBar(
                 const SnackBar(content: Text("Password changed successfully"), backgroundColor: brandGreen),
               );
             },
@@ -1016,7 +1022,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messengerKey.currentState?.showSnackBar(
                 const SnackBar(content: Text("Logged out successfully"), backgroundColor: Colors.orange),
               );
               // Add actual logout logic here (Firebase or your auth system)

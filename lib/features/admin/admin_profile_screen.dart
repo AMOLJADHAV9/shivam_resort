@@ -47,14 +47,14 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
             phone: _phoneController.text.trim(),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Profile updated!")),
         );
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           SnackBar(content: Text("Update Failed: $e")),
         );
       }

@@ -15,12 +15,17 @@ class BookingDetailDialog {
     final reporting = (b['reportingDate'] as Timestamp?)?.toDate();
     
     final foodItems = (b['foodBills'] as List?) ?? [];
-    final foodTotal = foodItems.fold(0.0, (sum, item) => sum + (item['price'] ?? 0).toDouble());
+    final foodTotal = foodItems.fold(0.0, (sum, item) => sum + (double.tryParse(item['price']?.toString() ?? '0') ?? 0.0));
     
     final advance = (b['advancePayment'] as num?)?.toDouble() ?? 0.0;
-    final totalStay = (b['totalPayment'] as num?)?.toDouble() ?? 0.0;
+    final remainingRent = (b['remainingRent'] as num?)?.toDouble() ?? 0.0;
+    final roomRent = (b['roomRent'] as num?)?.toDouble() ?? (advance + remainingRent);
+    final gstAmount = (b['gstAmount'] as num?)?.toDouble() ?? 0.0;
+    final gstPercent = (b['gstPercent'] as num?)?.toDouble() ?? 0.0;
+    
+    final totalStay = advance + remainingRent; 
     final totalBill = totalStay + foodTotal;
-    final balance = totalBill - advance;
+    final balance = (b['status'] == 'checked-out') ? 0.0 : (remainingRent + foodTotal);
 
     showDialog(
       context: context,
@@ -33,17 +38,21 @@ class BookingDetailDialog {
             Text("${FormatUtils.formatUnit(b['category'], b['unitNumber'])} - ${b['category']}", style: const TextStyle(fontSize: 14, color: Colors.black54)),
           ],
         ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 _detailRow(brandPurple, Icons.phone, "Phone", b['phone'] ?? 'N/A'),
                 _detailRow(brandPurple, Icons.badge, "ID Proof", b['idProof'] ?? 'N/A'),
                 if (b['idImageUrl'] != null && b['idImageUrl'].toString().isNotEmpty) ...[
                   const SizedBox(height: 10),
+                  const Text("ID Proof - Front:", style: TextStyle(fontSize: 12, color: brandPurple, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
@@ -56,7 +65,49 @@ class BookingDetailDialog {
                         return const Center(child: CircularProgressIndicator());
                       },
                       errorBuilder: (context, error, stackTrace) => const Center(
-                        child: Text("ID Photo unavailable", style: TextStyle(color: Colors.red, fontSize: 12)),
+                        child: Text("Front ID Photo unavailable", style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
+                    ),
+                  ),
+                ],
+                if (b['idImageBackUrl'] != null && b['idImageBackUrl'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 15),
+                  const Text("ID Proof - Back:", style: TextStyle(fontSize: 12, color: brandPurple, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      b['idImageBackUrl'].toString(),
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Text("Back ID Photo unavailable", style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
+                    ),
+                  ),
+                ],
+                if (b['guestPhotoUrl'] != null && b['guestPhotoUrl'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 15),
+                  const Text("Guest Photo:", style: TextStyle(fontSize: 12, color: brandPurple, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      b['guestPhotoUrl'].toString(),
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Text("Guest Photo unavailable", style: TextStyle(color: Colors.red, fontSize: 12)),
                       ),
                     ),
                   ),
@@ -74,20 +125,86 @@ class BookingDetailDialog {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(item['name'] ?? 'Item', style: const TextStyle(fontSize: 13)),
+                        Flexible(child: Text("- ${item['name']}", style: const TextStyle(fontSize: 13, overflow: TextOverflow.ellipsis))),
+                        if (item['imageUrl'] != null)
+                          IconButton(
+                            icon: const Icon(Icons.image_outlined, size: 18, color: Color(0xFF673AB7)),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  child: Stack(
+                                    children: [
+                                      Image.network(item['imageUrl']),
+                                      Positioned(
+                                        top: 10, right: 10,
+                                        child: CircleAvatar(
+                                          backgroundColor: Colors.black54,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.close, color: Colors.white),
+                                            onPressed: () => Navigator.pop(context),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         Text("₹${item['price']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   )).toList(),
                   const Divider(),
                 ],
-                _detailRow(brandPurple, Icons.payments, "Paid at Booking", "₹$advance"),
-                if (totalBill > 0) ...[
-                  if (totalStay > 0) _detailRow(brandPurple, Icons.hotel, "Stay Charges", "₹$totalStay"),
-                  if (foodTotal > 0) _detailRow(brandPurple, Icons.restaurant, "Food Charges", "₹$foodTotal"),
-                  _detailRow(brandPurple, Icons.receipt_long, "Total Bill", "₹$totalBill"),
-                  _detailRow(brandPurple, Icons.account_balance_wallet, "Final Balance", "₹${balance.toStringAsFixed(0)}", isBold: true),
+                if (b['packageName'] != null) ...[
+                  Text("Package: ${b['packageName']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: brandPurple)),
+                  const SizedBox(height: 5),
+                  if (b['packageInclusions'] != null)
+                    ...((b['packageInclusions'] as List).map((inc) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle, size: 14, color: brandGreen),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(inc, style: const TextStyle(fontSize: 13))),
+                        ],
+                      ),
+                    ))).toList(),
+                  const Divider(),
                 ],
+
+                _detailRow(brandPurple, Icons.payments, "Advance Paid", "₹$advance"),
+                _detailRow(brandPurple, Icons.apartment, "Base Room Rent", "₹$roomRent"),
+                if (gstAmount > 0) _detailRow(brandPurple, Icons.percent, "GST ($gstPercent%)", "₹$gstAmount"),
+                _detailRow(brandPurple, Icons.pending_actions, "Remaining Rent", "₹$remainingRent"),
+                const Divider(),
+                _detailRow(brandPurple, Icons.receipt_long, "Grand Total (Rent+GST)", "₹${(roomRent + gstAmount).toStringAsFixed(0)}", isBold: true),
+                const SizedBox(height: 15),
+                if (foodTotal > 0) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: brandPurple.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("FOOD & SERVICES (Informational)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: brandPurple)),
+                        const SizedBox(height: 4),
+                        Text("₹$foodTotal", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        const Text("Paid separately, not in Grand Total.", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                if (b['status'] != 'checked-out')
+                  _detailRow(brandGreen, Icons.account_balance_wallet, "Due at Checkout", "₹${balance.toStringAsFixed(0)}", isBold: true),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -99,7 +216,8 @@ class BookingDetailDialog {
                     "Status: ${(b['status'] ?? 'UNKNOWN').toString().toUpperCase()}",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: (b['status'] ?? '').toString().contains('booked') ? Colors.orange : brandGreen,
+                      color: (b['status'] ?? '').toString().contains('booked') ? Colors.orange 
+                            : (b['status'] == 'cleaning') ? Colors.blueGrey : brandGreen,
                     ),
                   ),
                 ),
@@ -109,6 +227,7 @@ class BookingDetailDialog {
             ),
           ),
         ),
+      ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("CLOSE")),
           if (b['status'] == 'checked-out')

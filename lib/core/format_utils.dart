@@ -1,6 +1,6 @@
 class FormatUtils {
   static String formatUnit(String? category, dynamic unitNum) {
-    if (unitNum == null) return "—";
+    if (unitNum == null) return "-";
     
     String prefix = "V"; // Default
     if (category == "Cottages") {

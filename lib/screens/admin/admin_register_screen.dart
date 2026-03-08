@@ -26,7 +26,7 @@ class _AdminRegisterScreenState extends ConsumerState<AdminRegisterScreen> {
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Please fill all fields")),
         );
       }
@@ -35,7 +35,7 @@ class _AdminRegisterScreenState extends ConsumerState<AdminRegisterScreen> {
 
     if (password != confirmPassword) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Passwords do not match")),
         );
       }
@@ -52,14 +52,14 @@ class _AdminRegisterScreenState extends ConsumerState<AdminRegisterScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Account created successfully!")),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           SnackBar(content: Text(e.toString())),
         );
       }
@@ -79,78 +79,273 @@ class _AdminRegisterScreenState extends ConsumerState<AdminRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 800;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Create Admin Account"),
-      ),
-      body: Center(
-        child: Container(
-          width: width > 600 ? 450 : width * 0.9,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SingleChildScrollView(
+      backgroundColor: Colors.white,
+      body: isMobile ? _mobileLayout() : _desktopLayout(),
+    );
+  }
+
+  // ================= MOBILE =================
+  Widget _mobileLayout() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 40),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20), // Deep Forest Green
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: "Full Name",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: "Email",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                const Icon(Icons.spa_rounded, color: Colors.white, size: 50),
+                const SizedBox(height: 10),
+                const Text(
+                  "Create Admin Account",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
+                const Text(
+                  "Join the Shivam Resorts Management Team",
+                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: "Confirm Password",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _registerAdmin,
-                    child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Create Account"),
-                  ),
-                ),
-                const SizedBox(height: 20),
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.all(30),
+            child: _registerForm(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= DESKTOP =================
+  Widget _desktopLayout() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 6,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.spa_rounded, size: 80, color: Colors.white),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Shivam Resorts",
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "ADMIN REGISTRATION",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.6),
+                      letterSpacing: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 4,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 40,
+                left: 40,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 40),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: _registerForm(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ================= FORM CONTENT =================
+  Widget _registerForm() {
+    const Color brandPurple = Color(0xFF673AB7);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Account Details",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "Fill in the information below to create your official admin profile.",
+          style: TextStyle(fontSize: 14, color: Colors.black54),
+        ),
+        const SizedBox(height: 40),
+        _customField(
+          controller: _nameController,
+          label: "Full Name",
+          icon: Icons.person_outline,
+        ),
+        const SizedBox(height: 15),
+        _customField(
+          controller: _emailController,
+          label: "Email Address",
+          icon: Icons.email_outlined,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 15),
+        _customField(
+          controller: _passwordController,
+          label: "Password",
+          icon: Icons.lock_outline,
+          isPassword: true,
+        ),
+        const SizedBox(height: 15),
+        _customField(
+          controller: _confirmPasswordController,
+          label: "Confirm Password",
+          icon: Icons.lock_reset_rounded,
+          isPassword: true,
+        ),
+        const SizedBox(height: 35),
+        SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _registerAdmin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: brandPurple,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: brandPurple.withOpacity(0.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    "CREATE ACCOUNT",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                children: [
+                  const TextSpan(text: "Already have an account? "),
+                  TextSpan(
+                    text: "Log In",
+                    style: TextStyle(
+                      color: brandPurple,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _customField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.black45, fontSize: 13),
+          prefixIcon: Icon(icon, color: const Color(0xFF673AB7), size: 18),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Color(0xFF673AB7), width: 1.5),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );

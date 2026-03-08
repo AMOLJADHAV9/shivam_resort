@@ -6,6 +6,7 @@ import '../../screens/admin/admin_login_screen.dart';
 import '../admin/admin_main_wrapper.dart';
 import '../../screens/staff/staff_dashboard.dart';
 import '../../main.dart';
+import 'password_reset_dialog.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Please enter email and password")),
         );
       }
@@ -43,18 +44,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final role = result['role'] as String;
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Welcome back!")),
-        );
+        // Navigate based on role immediately
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminMainWrapper()),
+          );
+        } else if (role == 'staff') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const StaffDashboard()),
+          );
+        } else {
+          // Unknown role, show error and sign out
+          await ref.read(authRepositoryProvider).signOut();
+          messengerKey.currentState?.showSnackBar(
+            const SnackBar(content: Text("Invalid user role")),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           SnackBar(content: Text(e.toString())),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      // Only set loading to false if we're still mounted and haven't navigated away
+      // Small delay is handled in catch block for errors
+      // For successful login, navigation happens immediately
     }
   }
 
@@ -73,14 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFE3F2FD),
-              Color(0xFFFFFFFF),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Colors.white,
         ),
         child: isMobile ? _mobileLayout() : _desktopLayout(),
       ),
@@ -89,59 +102,113 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ================= MOBILE =================
   Widget _mobileLayout() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: _loginContent(),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 30),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20), // Deep Forest Green
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.spa_rounded, color: Colors.white, size: 60),
+                const SizedBox(height: 15),
+                const Text(
+                  "Shivam Resorts",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                Text(
+                  "Escape to Luxury",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(30),
+            child: _loginContent(),
+          ),
+        ],
       ),
     );
   }
 
-  // ================= DESKTOP / TABLET =================
+  // ================= DESKTOP =================
   Widget _desktopLayout() {
     return Row(
       children: [
-        // Left Branding Section
         Expanded(
-          flex: 5,
+          flex: 6,
           child: Container(
-            color: const Color(0xFF2E7D32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20), // Deep Forest Green
+            ),
+            child: Stack(
               children: [
-                Image.asset(
-                  "assets/logo.png",
-                  height: 130,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Shivam Resorts",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.1,
+                    child: Center(
+                      child: Icon(Icons.spa_rounded, size: 500, color: Colors.white.withOpacity(0.2)),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  "Management & Booking System",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.spa_rounded, size: 100, color: Colors.white),
+                      const SizedBox(height: 25),
+                      const Text(
+                        "Shivam Resorts",
+                        style: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "MANAGEMENT SYSTEM",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.7),
+                          letterSpacing: 8,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
         ),
-
-        // Right Login Form Section
         Expanded(
           flex: 4,
-          child: Center(
-            child: SizedBox(
-              width: 400,
-              child: _loginContent(),
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 60),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: _loginContent(),
+              ),
             ),
           ),
         ),
@@ -149,100 +216,167 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // ================= LOGIN FORM =================
+  // ================= CONTENT =================
   Widget _loginContent() {
+    const Color brandPurple = Color(0xFF673AB7);
+    
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Management Login",
+          "Welcome Back",
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 32,
             fontWeight: FontWeight.bold,
+            color: Color(0xFF2C3E50),
           ),
         ),
-
-        const SizedBox(height: 8),
-
+        const SizedBox(height: 10),
         const Text(
-          "Enter your credentials to continue",
+          "Please log in to manage your resort operations.",
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 15,
             color: Colors.black54,
           ),
         ),
-
         const SizedBox(height: 40),
-
-        TextField(
+        
+        _customField(
           controller: _emailController,
-          decoration: InputDecoration(
-            labelText: "Email",
-            prefixIcon: const Icon(Icons.email_outlined),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: "Email Address",
+          icon: Icons.email_outlined,
+          keyboardType: TextInputType.emailAddress,
         ),
-
         const SizedBox(height: 20),
-
-        TextField(
+        _customField(
           controller: _passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: "Password",
-            prefixIcon: const Icon(Icons.lock_outline),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: "Password",
+          icon: Icons.lock_outline_rounded,
+          isPassword: true,
         ),
-
-        const SizedBox(height: 30),
-
-        // ================= UNIFIED LOGIN BUTTON =================
+        const SizedBox(height: 35),
+        
         SizedBox(
           width: double.infinity,
-          height: 50,
+          height: 55,
           child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD81B60),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
             onPressed: _isLoading ? null : _login,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: brandPurple,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: brandPurple.withOpacity(0.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            ),
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text(
-                    "Login to Dashboard",
-                    style: TextStyle(fontSize: 16),
+                    "LOG IN",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
                   ),
           ),
         ),
-
-        const SizedBox(height: 20),
-
-        // ================= ADMIN CREATE =================
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => PasswordResetDialog(
+                  initialEmail: _emailController.text,
+                ),
+              );
+            },
+            child: const Text(
+              "Forgot Password?",
+              style: TextStyle(
+                color: brandPurple,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
         Center(
           child: TextButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminRegisterScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AdminRegisterScreen()),
               );
             },
-            child: const Text("New Admin? Create Account"),
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                children: [
+                  const TextSpan(text: "Don't have an admin account? "),
+                  TextSpan(
+                    text: "Register here",
+                    style: TextStyle(
+                      color: brandPurple,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _customField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.black45, fontSize: 14),
+          prefixIcon: Icon(icon, color: const Color(0xFF673AB7), size: 20),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Color(0xFF673AB7), width: 1.5),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        ),
+      ),
     );
   }
 }

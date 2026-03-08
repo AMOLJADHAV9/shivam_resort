@@ -4,6 +4,7 @@ import '../../core/auth_provider.dart';
 import 'admin_register_screen.dart';
 import '../../features/admin/admin_main_wrapper.dart';
 import '../../main.dart';
+import '../../features/auth/password_reset_dialog.dart';
 
 class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
@@ -23,7 +24,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           const SnackBar(content: Text("Please enter email and password")),
         );
       }
@@ -39,18 +40,21 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Welcome, Admin!")),
+        // Navigate to admin dashboard immediately
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminMainWrapper()),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messengerKey.currentState?.showSnackBar(
           SnackBar(content: Text(e.toString())),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      // Navigation happens immediately on success
+      // Only update loading state on error
     }
   }
 
@@ -63,75 +67,278 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 800;
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: width > 600 ? 400 : width * 0.9,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Admin Login",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+      backgroundColor: Colors.white,
+      body: isMobile ? _mobileLayout() : _desktopLayout(),
+    );
+  }
+
+  // ================= MOBILE =================
+  Widget _mobileLayout() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 30),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20), // Deep Forest Green
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                "Shivam Resort Management",
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: "Admin Email",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.spa_rounded, color: Colors.white, size: 60),
+                const SizedBox(height: 15),
+                const Text(
+                  "Admin Portal",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                Text(
+                  "Shivam Resorts Management",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 2,
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _loginAdmin,
-                  child: _isLoading 
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Login"),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdminRegisterScreen(),
-                    ),
-                  );
-                },
-                child: const Text("Create Admin Account"),
-              ),
-            ],
+              ],
+            ),
           ),
+          Padding(
+            padding: const EdgeInsets.all(30),
+            child: _loginForm(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= DESKTOP =================
+  Widget _desktopLayout() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 6,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B5E20),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.spa_rounded, size: 100, color: Colors.white),
+                  const SizedBox(height: 25),
+                  const Text(
+                    "Shivam Resorts",
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "ADMINISTRATOR ACCESS",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.7),
+                      letterSpacing: 8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 4,
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 60),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: _loginForm(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ================= FORM CONTENT =================
+  Widget _loginForm() {
+    const Color brandPurple = Color(0xFF673AB7);
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Admin Sign In",
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          "Authorized personnel only. Please enter your credentials.",
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 40),
+        
+        _customField(
+          controller: _emailController,
+          label: "Admin Email",
+          icon: Icons.admin_panel_settings_outlined,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 20),
+        _customField(
+          controller: _passwordController,
+          label: "Password",
+          icon: Icons.lock_outline_rounded,
+          isPassword: true,
+        ),
+        const SizedBox(height: 35),
+        
+        SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _loginAdmin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: brandPurple,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: brandPurple.withOpacity(0.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    "LOGIN",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => PasswordResetDialog(
+                  initialEmail: _emailController.text,
+                ),
+              );
+            },
+            child: const Text(
+              "Forgot Password?",
+              style: TextStyle(
+                color: brandPurple,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminRegisterScreen()),
+              );
+            },
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                children: [
+                  const TextSpan(text: "New Administrator? "),
+                  TextSpan(
+                    text: "Create Account",
+                    style: TextStyle(
+                      color: brandPurple,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _customField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.black45, fontSize: 14),
+          prefixIcon: Icon(icon, color: const Color(0xFF673AB7), size: 20),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Color(0xFF673AB7), width: 1.5),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
       ),
     );

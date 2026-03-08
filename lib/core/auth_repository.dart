@@ -221,6 +221,16 @@ class AuthRepository {
     await _auth.signOut();
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw 'An unexpected error occurred: $e';
+    }
+  }
+
   Future<void> updateAdminProfile({
     required String uid,
     required String name,

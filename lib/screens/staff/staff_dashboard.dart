@@ -48,49 +48,54 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   final paymentController = TextEditingController();
   final idProofController = TextEditingController();
   final totalPeopleController = TextEditingController(text: "1");
+  final rentController = TextEditingController();
+  final gstController = TextEditingController(text: "12"); // Default 12%
 
   // History State
   final searchController = TextEditingController();
   String searchQuery = "";
   String filterStatus = "All";
   String filterCategory = "All";
+  String reportFilterStatus = "All"; // "All", "pre-booked", "occupied", "checked-out"
   int _arrivalsInitialTab = 0; // 0 = Today, 1 = Tomorrow
 
   bool _isSaving = false;
   File? _idImage;
+  File? _idImageBack;
+  File? _guestPhoto;
 
   final Map<String, dynamic> inventory = {
     "Cottages": {
-      "Magic – 2 Bed Cottage": [501, 502, 503, 504, 512, 511, 509, 510],
-      "Magic – 3 Bed Cottage": [505, 506, 507, 508],
+      "Magic Guest House - 2 Bed Cottage": [501, 502, 503, 504, 512, 511, 509, 510],
+      "Magic Guest House - 3 Bed Cottage": [505, 506, 507, 508],
     },
     "Lodging Deluxe": {
-      "Vishva Residency – 2 Bed Room": ["003", "004", "103", "104"],
-      "Vishva Residency – 3 Bed Room": ["001", "002", "005", "006", "007", "008", "101", "102", "105", "106", "107", "108", "111"],
+      "Vishva Residency - 6 Bed Hall": ["009", "010", "109", "110"],
+      "Vishva Residency - 2 Bed Room": ["003", "004", "103", "104"],
+      "Vishva Residency - 3 Bed Room": ["001", "002", "005", "006", "007", "008", "101", "102", "105", "106", "107", "108", "111"],
     },
     "Dormitory": {
-      "Vishva Residency – 6 Bed Hall": ["009", "010", "109", "110"],
-      "Party Hub – 11 Bed Hall": 1,
-      "Magic Guest House – 20 Bed Hall": 1,
+      "Party Hub - 11 Bed Hall": 1,
+      "Magic Guest House - 20 Bed Hall": 1,
     },
     "Banquet Hall (AC)": {
-      "Central Vistara – 300–400 Capacity": 1,
-      "Green Orchid – 100–200 Capacity": 2,
+      "Central Vistara - 300-400 Capacity": 1,
+      "Green Orchid - 100-200 Capacity": 2,
     },
     "Lawn": {
-      "Vanila Lawn – 50 People": 1,
-      "Bombaya Lawn – 250–300 People": 1,
-      "Shivamji Lawn – 2000–2500 People": 1,
+      "Vanila Lawn - 50 People": 1,
+      "Bombaya Lawn - 250-300 People": 1,
+      "Shivamji Lawn - 2000-2500 People": 1,
     },
     "Function Hall": {
-      "Shivam Function – 800–1200 Capacity": 1,
-      "Royal Rituals – 300–400 Capacity": 1,
+      "Shivam Function - 800-1200 Capacity": 1,
+      "Royal Rituals - 300-400 Capacity": 1,
     },
     "Meeting Hall": {
-      "Royal Dine – 20 Persons": 1,
+      "Royal Dine - 20 Persons": 1,
     },
     "Saptapadi Hall": {
-      "Mango Farm –150–200 Persons": 1,
+      "Mango Farm - 150-200 Persons": 1,
     },
   };
 
@@ -141,70 +146,91 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 // 2. Input Fields
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: "Customer Name", prefixIcon: Icon(Icons.person))),
                 TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Phone Number", prefixIcon: Icon(Icons.phone))),
-                TextField(controller: idProofController, decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge))),
-                TextField(controller: totalPeopleController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Total People", prefixIcon: Icon(Icons.groups))),
-                
-                const SizedBox(height: 10),
-                
-                // Image Picker Row
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final ImagePicker picker = ImagePicker();
-                          final XFile? image = await showDialog<XFile?>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text("Select ID Proof Source"),
-                              actions: [
-                                TextButton.icon(
-                                  onPressed: () async {
-                                    final img = await picker.pickImage(source: ImageSource.camera);
-                                    if (context.mounted) Navigator.pop(context, img);
-                                  }, 
-                                  icon: const Icon(Icons.camera_alt), label: const Text("Camera")
-                                ),
-                                TextButton.icon(
-                                  onPressed: () async {
-                                    final img = await picker.pickImage(source: ImageSource.gallery);
-                                    if (context.mounted) Navigator.pop(context, img);
-                                  }, 
-                                  icon: const Icon(Icons.photo_library), label: const Text("Gallery")
-                                ),
-                              ],
-                            ),
-                          );
-                          
-                          if (image != null) {
-                            setModalState(() => _idImage = File(image.path));
-                          }
-                        },
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text("Capture ID Proof"),
-                        style: OutlinedButton.styleFrom(foregroundColor: brandPink),
-                      ),
-                    ),
-                    if (_idImage != null) ...[
-                      const SizedBox(width: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Builder(
-                          builder: (context) {
-                            final imageFile = _idImage;
-                            if (imageFile == null) return const SizedBox.shrink();
-                            return Image.file(imageFile, width: 50, height: 50, fit: BoxFit.cover);
+                if (bookingType == "Confirmed") ...[
+                  TextField(controller: idProofController, decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge))),
+                  const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildIdSlot(
+                          label: "FRONT SIDE",
+                          file: _idImage,
+                          onTap: () async {
+                            final file = await _captureIdImage("ID Proof Front");
+                            if (file != null) setModalState(() => _idImage = file);
                           },
+                          onClear: () => setModalState(() => _idImage = null),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => setModalState(() => _idImage = null),
-                        icon: const Icon(Icons.cancel, color: Colors.red),
-                      )
-                    ]
-                  ],
-                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildIdSlot(
+                          label: "BACK SIDE",
+                          file: _idImageBack,
+                          onTap: () async {
+                            final file = await _captureIdImage("ID Proof Back");
+                            if (file != null) setModalState(() => _idImageBack = file);
+                          },
+                          onClear: () => setModalState(() => _idImageBack = null),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  // Guest Photo Row
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await showDialog<XFile?>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Capture Guest Photo"),
+                                actions: [
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final img = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
+                                      if (context.mounted) Navigator.pop(context, img);
+                                    }, 
+                                    icon: const Icon(Icons.camera_front), label: const Text("Selfie/Front")
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final img = await picker.pickImage(source: ImageSource.camera);
+                                      if (context.mounted) Navigator.pop(context, img);
+                                    }, 
+                                    icon: const Icon(Icons.camera_alt), label: const Text("Camera")
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (image != null) {
+                              setModalState(() => _guestPhoto = File(image.path));
+                            }
+                          },
+                          icon: const Icon(Icons.face),
+                          label: const Text("Capture Guest Photo"),
+                          style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
+                        ),
+                      ),
+                      if (_guestPhoto != null) ...[
+                        const SizedBox(width: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(_guestPhoto!, width: 50, height: 50, fit: BoxFit.cover),
+                        ),
+                        IconButton(
+                          onPressed: () => setModalState(() => _guestPhoto = null),
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                        )
+                      ]
+                    ],
+                  ),
+                ],
                 
                 const SizedBox(height: 15),
 
@@ -266,39 +292,70 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   style: OutlinedButton.styleFrom(foregroundColor: brandPurple),
                 ),
 
-                const SizedBox(height: 15),
-                const Text("Charging Cycle", style: TextStyle(fontWeight: FontWeight.bold, color: brandPurple)),
+                TextField(controller: totalPeopleController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Total People", prefixIcon: Icon(Icons.groups))),
+
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text("22-Hr Strict", style: TextStyle(fontSize: 12)),
-                        value: "24h",
-                        groupValue: chargingMode,
-                        activeColor: brandPink,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setModalState(() => chargingMode = val!),
+                      child: TextField(
+                        controller: rentController, 
+                        keyboardType: TextInputType.number, 
+                        onChanged: (v) => setModalState(() {}),
+                        decoration: const InputDecoration(labelText: "Room Rent (₹)", prefixIcon: Icon(Icons.apartment))
                       ),
                     ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: RadioListTile<String>(
-                        title: const Text("Flexible Day", style: TextStyle(fontSize: 12)),
-                        value: "flexible",
-                        groupValue: chargingMode,
-                        activeColor: brandPink,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setModalState(() => chargingMode = val!),
+                      child: TextField(
+                        controller: gstController, 
+                        keyboardType: TextInputType.number, 
+                        onChanged: (v) => setModalState(() {}),
+                        decoration: const InputDecoration(labelText: "GST (%)", prefixIcon: Icon(Icons.percent))
                       ),
                     ),
                   ],
                 ),
 
+                const SizedBox(height: 15),
+                // Calculation Summary Widget
+                if (rentController.text.isNotEmpty) Builder(
+                  builder: (context) {
+                    final rent = double.tryParse(rentController.text) ?? 0.0;
+                    final gstP = double.tryParse(gstController.text) ?? 0.0;
+                    final gstA = (rent * gstP) / 100;
+                    final total = rent + gstA;
+                    final adv = double.tryParse(paymentController.text) ?? 0.0;
+                    final rem = total - adv;
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: brandPurple.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: brandPurple.withOpacity(0.1)),
+                      ),
+                      child: Column(
+                        children: [
+                          _calcRow("Base Rent", "₹${rent.toStringAsFixed(0)}"),
+                          _calcRow("GST ($gstP%)", "+ ₹${gstA.toStringAsFixed(0)}"),
+                          const Divider(),
+                          _calcRow("Grand Total", "₹${total.toStringAsFixed(0)}", isBold: true),
+                          _calcRow("Paid (Advance)", "- ₹${adv.toStringAsFixed(0)}"),
+                          _calcRow("Balance Remaining", "₹${rem.toStringAsFixed(0)}", color: brandPink, isBold: true),
+                        ],
+                      ),
+                    );
+                  }
+                ),
+
                 TextField(
                   controller: paymentController, 
                   keyboardType: TextInputType.number, 
+                  onChanged: (v) => setModalState(() {}),
                   decoration: InputDecoration(
                     labelText: bookingType == "Prebook" ? "Advance Payment (₹)" : "Full Payment (₹)", 
-                    prefixIcon: const Icon(Icons.currency_rupee)
+                    prefixIcon: const Icon(Icons.payments_outlined)
                   )
                 ),
 
@@ -321,9 +378,21 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       return;
                     }
                     
+                    if (bookingType == "Confirmed" && idProofController.text.trim().isEmpty) {
+                      if (context.mounted) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(content: Text("ID Proof is mandatory for confirmed bookings")),
+                        );
+                      }
+                      return;
+                    }
+                    
                     setState(() => _isSaving = true);
                     try {
                       String? idImageUrl;
+                      String? idImageBackUrl;
+                      String? guestPhotoUrl;
+
                       if (_idImage != null) {
                         idImageUrl = await CloudinaryService.uploadIdProof(_idImage!);
                         if (idImageUrl == null && mounted) {
@@ -332,6 +401,29 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                           );
                         }
                       }
+                      if (_idImageBack != null) {
+                        idImageBackUrl = await CloudinaryService.uploadIdProof(_idImageBack!);
+                        if (idImageBackUrl == null && mounted) {
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(content: Text("Failed to upload ID back image. Continuing with database only.")),
+                          );
+                        }
+                      }
+                      if (_guestPhoto != null) {
+                        guestPhotoUrl = await CloudinaryService.uploadIdProof(_guestPhoto!);
+                        if (guestPhotoUrl == null && mounted) {
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(content: Text("Failed to upload guest photo. Continuing with database only.")),
+                          );
+                        }
+                      }
+
+                      final roomRent = double.tryParse(rentController.text.trim()) ?? 0.0;
+                      final gstPercent = double.tryParse(gstController.text.trim()) ?? 0.0;
+                      final gstAmount = (roomRent * gstPercent) / 100;
+                      final advance = double.tryParse(paymentController.text.trim()) ?? 0.0;
+                      final totalWithGst = roomRent + gstAmount;
+                      final remainingRent = totalWithGst - advance;
 
                       await ref.read(bookingRepositoryProvider).saveBooking(
                         customerName: nameController.text.trim(),
@@ -342,11 +434,17 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         unitNumber: selectedUnit!,
                         reportingDate: selectedDate!,
                         checkOutDate: expectedCheckOutDate!,
-                        advancePayment: double.tryParse(paymentController.text.trim()) ?? 0.0,
+                        advancePayment: advance,
+                        roomRent: roomRent,
+                        gstPercent: gstPercent,
+                        gstAmount: gstAmount,
+                        remainingRent: remainingRent,
                         status: bookingType == "Prebook" ? "pre-booked" : "occupied",
                         chargingMode: chargingMode,
                         totalPeople: int.tryParse(totalPeopleController.text) ?? 1,
                         idImageUrl: idImageUrl,
+                        idImageBackUrl: idImageBackUrl,
+                        guestPhotoUrl: guestPhotoUrl,
                       );
                       
                       if (mounted) {
@@ -370,6 +468,12 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     
                                     if (bookingCheckIn == null || bookingCheckOut == null) return;
 
+                                    final roomRent = double.tryParse(rentController.text.trim()) ?? 0.0;
+                                    final gstP = double.tryParse(gstController.text.trim()) ?? 0.0;
+                                    final gstA = (roomRent * gstP) / 100;
+                                    final advance = double.tryParse(paymentController.text.trim()) ?? 0.0;
+                                    final total = roomRent + gstA;
+
                                     final bookingData = {
                                       'customerName': nameController.text.trim(),
                                       'phone': phoneController.text.trim(),
@@ -380,11 +484,17 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       'reportingDate': Timestamp.fromDate(bookingCheckIn),
                                       'checkOutDate': Timestamp.fromDate(bookingCheckOut),
                                       'checkInAt': Timestamp.fromDate(bookingCheckIn),
-                                      'advancePayment': double.tryParse(paymentController.text.trim()) ?? 0.0,
+                                      'roomRent': roomRent,
+                                      'gstPercent': gstP,
+                                      'gstAmount': gstA,
+                                      'advancePayment': advance,
+                                      'remainingRent': total - advance,
                                       'status': 'occupied',
                                       'chargingMode': chargingMode,
                                       'totalPeople': int.tryParse(totalPeopleController.text) ?? 1,
                                       'idImageUrl': idImageUrl,
+                                      'idImageBackUrl': idImageBackUrl,
+                                      'guestPhotoUrl': guestPhotoUrl,
                                     };
                                     ReceiptService.showPrintOptions(context, bookingData);
                                   },
@@ -404,13 +514,17 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         nameController.clear();
                         phoneController.clear();
                         paymentController.clear();
+                        rentController.clear();
+                        gstController.text = "12";
                         idProofController.clear();
                         totalPeopleController.text = "1";
                         setState(() {
                           selectedUnit = null;
                           selectedDate = null;
                           expectedCheckOutDate = null;
-                          _idImage = null; // Clear image state
+                           _idImage = null;
+                           _idImageBack = null;
+                           _guestPhoto = null;
                         });
                       }
                     } catch (e) {
@@ -485,19 +599,27 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 error: (e, _) => const Text("Shivam Resort Staff"),
               ),
               const SizedBox(height: 20),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
-                children: [
-                  _homeActionCard("New Booking", Icons.add_business, brandPink, () => setState(() => _currentIndex = 1)),
-                  _homeActionCard("Today Arrivals", Icons.today, brandGreen, () => setState(() { _currentIndex = 4; _arrivalsInitialTab = 0; }), count: todayArrivals),
-                  _homeActionCard("Tomorrow Arrivals", Icons.event_note, Colors.teal, () => setState(() { _currentIndex = 4; _arrivalsInitialTab = 1; }), count: tomorrowArrivals),
-                  _homeActionCard("Active Check-ins", Icons.hotel, brandGreen, () => setState(() => _currentIndex = 7), count: activeCheckIns),
-                  _homeActionCard("Booking History", Icons.history, const Color(0xFF2196F3), () => setState(() => _currentIndex = 2)),
-                  _homeActionCard("Check-Outs", Icons.exit_to_app, Colors.orange, () => setState(() => _currentIndex = 5), count: todayCheckOuts),
-                  _homeActionCard("Reports", Icons.assessment, Colors.indigo, () => setState(() => _currentIndex = 6)),
-                ],
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: GridView.extent(
+                    maxCrossAxisExtent: 220,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12, 
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
+                    children: [
+                      _homeActionCard("New Booking", Icons.add_business, brandPink, () => setState(() => _currentIndex = 1)),
+                      _homeActionCard("Today Arrivals", Icons.today, brandGreen, () => setState(() { _currentIndex = 4; _arrivalsInitialTab = 0; }), count: todayArrivals),
+                      _homeActionCard("Tomorrow Arrivals", Icons.event_note, Colors.teal, () => setState(() { _currentIndex = 4; _arrivalsInitialTab = 1; }), count: tomorrowArrivals),
+                      _homeActionCard("Active Check-ins", Icons.hotel, brandGreen, () => setState(() => _currentIndex = 7), count: activeCheckIns),
+                      _homeActionCard("Booking History", Icons.history, const Color(0xFF2196F3), () => setState(() => _currentIndex = 2)),
+                      _homeActionCard("Check-Outs", Icons.exit_to_app, Colors.orange, () => setState(() => _currentIndex = 5), count: todayCheckOuts),
+                      _homeActionCard("Reports", Icons.assessment, Colors.indigo, () => setState(() => _currentIndex = 6)),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -539,32 +661,35 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("Category", Icons.category),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, children: inventory.keys.map((c) => ChoiceChip(
-            label: Text(c), selected: selectedCategory == c, selectedColor: brandPink,
-            onSelected: (v) => setState(() { selectedCategory = c; selectedCapacity = null; selectedUnit = null; }),
-          )).toList()),
-          
-          if (selectedCategory != null) ...[
-            const SizedBox(height: 20),
-            _sectionHeader("Capacity", Icons.groups),
-            Wrap(spacing: 8, children: currentCapacities.keys.map((cap) => ChoiceChip(
-              label: Text(cap), selected: selectedCapacity == cap, selectedColor: brandPurple,
-              onSelected: (v) => setState(() { selectedCapacity = cap; selectedUnit = null; }),
-            )).toList()),
-          ],
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHeader("Category", Icons.category),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, children: inventory.keys.map((c) => ChoiceChip(
+                label: Text(c), selected: selectedCategory == c, selectedColor: brandPink,
+                onSelected: (v) => setState(() { selectedCategory = c; selectedCapacity = null; selectedUnit = null; }),
+              )).toList()),
+              
+              if (selectedCategory != null) ...[
+                const SizedBox(height: 20),
+                _sectionHeader("Capacity", Icons.groups),
+                Wrap(spacing: 8, children: currentCapacities.keys.map((cap) => ChoiceChip(
+                  label: Text(cap), selected: selectedCapacity == cap, selectedColor: brandPurple,
+                  onSelected: (v) => setState(() { selectedCapacity = cap; selectedUnit = null; }),
+                )).toList()),
+              ],
 
-          if (selectedCapacity != null) ...[
-            const SizedBox(height: 20),
-            _sectionHeader("Select Unit", Icons.grid_view),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(child: Text("Tap any unit to view its calendar & availability", style: TextStyle(fontSize: 12, color: Colors.grey[600]))),
+              if (selectedCapacity != null) ...[
+                const SizedBox(height: 20),
+                _sectionHeader("Select Unit", Icons.grid_view),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(child: Text("Tap any unit to view its calendar & availability", style: TextStyle(fontSize: 12, color: Colors.grey[600]))),
                 _unitLegendCircle(const Color(0xFF81D4FA), "Avail"),
                 const SizedBox(width: 8),
                 _unitLegendCircle(Colors.orange, "Pre"),
@@ -612,6 +737,12 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                          isOverdue = true;
                          timeHint = 'Late Arrival';
                        }
+                    } else if (status == 'cleaning' && booking['cleaningUntil'] != null) {
+                        final until = (booking['cleaningUntil'] as Timestamp).toDate();
+                        if (until.isAfter(now)) {
+                          final diff = until.difference(now);
+                          timeHint = 'Cleaning ${diff.inMinutes}m left';
+                        }
                     }
 
                     Color chipColor = const Color(0xFF81D4FA); // Sky Blue for Available
@@ -624,6 +755,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       isSolid = true;
                     } else if (status == 'occupied') {
                       chipColor = isOverdue ? Colors.red : brandGreen;
+                      textColor = Colors.white;
+                      isSolid = true;
+                    } else if (status == 'cleaning') {
+                      chipColor = Colors.blueGrey;
                       textColor = Colors.white;
                       isSolid = true;
                     }
@@ -649,7 +784,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                           capacity: selectedCapacity!,
                           unitNumber: unitNum,
                           chargingMode: chargingMode,
-                          currentBooking: status != 'Available' ? booking : null,
+                          currentBooking: (status != 'Available' && status != 'cleaning') ? booking : null,
                           onBookDates: (checkIn, checkOut) {
                             // Pre-fill dates and open the customer form
                             setState(() {
@@ -659,12 +794,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                             openCustomerForm();
                           },
                           onCheckIn: (b) async {
-                            await ref.read(bookingRepositoryProvider).confirmCheckIn(b['id']);
-                            if (mounted) {
-                              Navigator.pop(context); // Close calendar sheet
-                              _handleExistingBooking(b); // Re-open detail if needed, or just show success
-                            }
-                          },
+                             await _confirmCheckInWithValidation(b);
+                           },
                           onCheckOut: (b) {
                             Navigator.pop(context); // Close calendar sheet
                             _showCheckOutDialog(b); // Open checkout billing dialog
@@ -681,6 +812,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                             }
                           },
                         );
+
+                        if (status == 'cleaning') {
+                          _showFinishCleaningDialog(booking);
+                          return;
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -700,6 +836,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                 Icon(
                                   status == 'Available' ? Icons.check_circle_outline
                                     : status == 'occupied' ? Icons.hotel
+                                    : status == 'cleaning' ? Icons.cleaning_services
                                     : Icons.event_seat,
                                   size: 14,
                                   color: status == 'Available' ? Colors.blueGrey : (isOverdue ? Colors.red : chipColor),
@@ -746,8 +883,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           ],
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   void _handleExistingBooking(Map<String, dynamic> booking) {
     showDialog(
@@ -779,8 +918,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
             ),
             TextButton(
               onPressed: () async {
-                await ref.read(bookingRepositoryProvider).confirmCheckIn(booking['id']);
                 Navigator.pop(context);
+                await _confirmCheckInWithValidation(booking);
               },
               child: const Text("CONFIRM CHECK-IN", style: TextStyle(color: Colors.green)),
             ),
@@ -798,84 +937,438 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
       ),
     );
   }
+  Future<void> _confirmCheckInWithValidation(Map<String, dynamic> b) async {
+    final hasId = b['idProof'] != null && b['idProof'].toString().trim().isNotEmpty;
+    
+    if (hasId) {
+      try {
+        await ref.read(bookingRepositoryProvider).confirmCheckIn(b['id']);
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(backgroundColor: brandGreen, content: Text("Checked-in ${b['customerName']}!")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        }
+      }
+      return;
+    }
+
+    // Missing ID - Show specialized dialog
+    final idController = TextEditingController();
+    File? tempIdImage;
+    File? tempIdImageBack;
+    File? tempGuestPhoto;
+    bool isSavingLocal = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Complete Check-In Details", style: TextStyle(color: brandPurple, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("This was a pre-booking. Please fill in the ID Proof details and Guest Photo to proceed.", style: TextStyle(fontSize: 13, color: Colors.black54)),
+              const SizedBox(height: 15),
+              TextField(
+                controller: idController, 
+                decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge), border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 15),
+              const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildIdSlot(
+                      label: "FRONT SIDE",
+                      file: tempIdImage,
+                      onTap: () async {
+                        final file = await _captureIdImage("ID Proof Front");
+                        if (file != null) setDialogState(() => tempIdImage = file);
+                      },
+                      onClear: () => setDialogState(() => tempIdImage = null),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildIdSlot(
+                      label: "BACK SIDE",
+                      file: tempIdImageBack,
+                      onTap: () async {
+                        final file = await _captureIdImage("ID Proof Back");
+                        if (file != null) setDialogState(() => tempIdImageBack = file);
+                      },
+                      onClear: () => setDialogState(() => tempIdImageBack = null),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              // Guest Photo row
+              Row(
+                children: [
+                   OutlinedButton.icon(
+                      onPressed: () async {
+                        final ImagePicker picker = ImagePicker();
+                        final XFile? image = await showDialog<XFile?>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text("Guest Face Photo"),
+                            actions: [
+                              TextButton.icon(onPressed: () async {
+                                final img = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
+                                if (context.mounted) Navigator.pop(context, img);
+                              }, icon: const Icon(Icons.camera_front), label: const Text("Front Cam")),
+                              TextButton.icon(onPressed: () async {
+                                final img = await picker.pickImage(source: ImageSource.camera);
+                                if (context.mounted) Navigator.pop(context, img);
+                              }, icon: const Icon(Icons.camera_alt), label: const Text("Rear Cam")),
+                            ],
+                          ),
+                        );
+                        if (image != null) {
+                          setDialogState(() => tempGuestPhoto = File(image.path));
+                        }
+                      },
+                      icon: const Icon(Icons.face),
+                      label: const Text("Guest Photo"),
+                    ),
+                    if (tempGuestPhoto != null) ...[
+                      const SizedBox(width: 10),
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      IconButton(onPressed: () => setDialogState(() => tempGuestPhoto = null), icon: const Icon(Icons.cancel, color: Colors.red)),
+                    ]
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSavingLocal ? null : () => Navigator.pop(context), 
+              child: const Text("CANCEL")
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white),
+              onPressed: isSavingLocal ? null : () async {
+                if (idController.text.trim().isEmpty) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ID Proof is required")));
+                   return;
+                }
+                setDialogState(() => isSavingLocal = true);
+                try {
+                  String? idImageUrl;
+                  if (tempIdImage != null) {
+                    idImageUrl = await CloudinaryService.uploadIdProof(tempIdImage!);
+                  }
+                  
+                  String? idImageBackUrl;
+                  if (tempIdImageBack != null) {
+                    idImageBackUrl = await CloudinaryService.uploadIdProof(tempIdImageBack!);
+                  }
+                  
+                  String? guestPhotoUrl;
+                  if (tempGuestPhoto != null) {
+                    guestPhotoUrl = await CloudinaryService.uploadIdProof(tempGuestPhoto!);
+                  }
+                  
+                  await ref.read(bookingRepositoryProvider).confirmCheckIn(
+                    b['id'],
+                    idProof: idController.text.trim(),
+                    idImageUrl: idImageUrl,
+                    idImageBackUrl: idImageBackUrl,
+                    guestPhotoUrl: guestPhotoUrl,
+                  );
+                  if (context.mounted) Navigator.pop(context);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(backgroundColor: brandGreen, content: Text("Checked-in ${b['customerName']}!")),
+                    );
+                  }
+                } catch (e) {
+                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                } finally {
+                  setDialogState(() => isSavingLocal = false);
+                }
+              },
+              child: isSavingLocal ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text("CONFIRM CHECK-IN"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showCheckOutDialog(Map<String, dynamic> booking) {
-    final double? existingTotal = booking['totalPayment'] != null ? (booking['totalPayment'] as num).toDouble() : null;
-    final hasFullPayment = existingTotal != null && existingTotal > 0;
-    final totalController = TextEditingController(text: existingTotal?.toStringAsFixed(0) ?? "");
+    final double advance = (booking['advancePayment'] as num?)?.toDouble() ?? 0.0;
+    final double initialRemaining = (booking['remainingRent'] as num?)?.toDouble() ?? 0.0;
+    final foodItems = (booking['foodBills'] as List?) ?? [];
+    double foodTotal = 0.0;
+    for (var item in foodItems) {
+      foodTotal += (double.tryParse(item['price']?.toString() ?? '0') ?? 0.0);
+    }
+
+    final remainingController = TextEditingController(text: initialRemaining.toStringAsFixed(0));
+    final gstPercentController = TextEditingController(text: "12");
+    bool addGst = false;
 
     showDialog(
       context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final double remaining = double.tryParse(remainingController.text) ?? 0.0;
+          final double gstPercent = double.tryParse(gstPercentController.text) ?? 0.0;
+          final double subTotal = advance + remaining;
+          final double gstAmount = addGst ? (subTotal * (gstPercent / 100)) : 0.0;
+          final double grandTotal = subTotal + gstAmount;
+          final double balance = grandTotal - advance;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text("Check-Out Confirmation", style: TextStyle(fontWeight: FontWeight.bold)),
+            content: SizedBox(
+              width: 400,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Guest: ${booking['customerName']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 15),
+                    
+                    Text("Booking Rent (Advance already paid): ₹${advance.toStringAsFixed(0)}", 
+                         style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    
+                    TextField(
+                      controller: remainingController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        labelText: "Remaining Rent to Pay (₹)",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        prefixText: "₹ ",
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Rent Sub-Total", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text("₹${subTotal.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const Divider(height: 30),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Fooding Items (For Info Only)", style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showAddFoodDialog(booking);
+                          },
+                          child: const Text("EDIT/ADD", style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    if (foodItems.isEmpty)
+                      Text("No food items added", style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic))
+                    else
+                      ...foodItems.map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("• ${item['name']}", style: const TextStyle(fontSize: 12)),
+                            Text("₹${item['price']}", style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      )),
+                    const Divider(height: 30),
+                    
+                    CheckboxListTile(
+                      value: addGst,
+                      onChanged: (v) => setDialogState(() => addGst = v ?? false),
+                      title: const Text("Add GST (on Rent)", style: TextStyle(fontWeight: FontWeight.bold)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: brandPurple,
+                    ),
+                    if (addGst)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: TextField(
+                          controller: gstPercentController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: "GST Percentage (%)",
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            suffixText: "%",
+                            hintText: "e.g. 12 or 18",
+                          ),
+                        ),
+                      ),
+                    const Divider(height: 30),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Grand Total (Rent + GST)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text("₹${grandTotal.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: brandGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: Text("RENT BALANCE TO COLLECT", 
+                                 style: TextStyle(fontWeight: FontWeight.bold, color: brandGreen, fontSize: 14)),
+                          ),
+                          Text("₹${balance.toStringAsFixed(0)}", 
+                               style: const TextStyle(fontWeight: FontWeight.w900, color: brandGreen, fontSize: 24)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: brandPink))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: brandPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () async {
+                  try {
+                    await ref.read(bookingRepositoryProvider).checkOut(
+                      bookingId: booking['id'],
+                      totalPayment: subTotal, // Base rent applied
+                      paymentMode: "Cash",
+                      gstAmount: gstAmount,
+                      gstPercent: addGst ? gstPercent : 0,
+                    );
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      
+                      // Pass updated values to generator
+                      final updatedBooking = {
+                        ...booking,
+                        'remainingRent': remaining,
+                        'totalPayment': subTotal,
+                        'gstAmount': gstAmount,
+                        'gstPercent': addGst ? gstPercent : 0,
+                        'paymentMode': 'Cash',
+                        'checkOutAt': Timestamp.now(),
+                      };
+                      // 1. Cleaning Prompt
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => AlertDialog(
+                          title: const Text("Unit Cleaning Status"),
+                          content: const Text("Is this room already cleaned and ready for the next guest?"),
+                          actions: [
+                            TextButton(
+                              onPressed: () async {
+                                Navigator.pop(context); // Close cleaning dialog
+                                await ref.read(bookingRepositoryProvider).startCleaning(booking['id']);
+                                _showReceiptPrompt(updatedBooking);
+                              },
+                              child: const Text("NO, NEEDS CLEANING (2H)", style: TextStyle(color: Colors.orange)),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context); // Close cleaning dialog
+                                _showReceiptPrompt(updatedBooking);
+                              },
+                              style: ElevatedButton.styleFrom(backgroundColor: brandGreen),
+                              child: const Text("YES, IT'S CLEAN"),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                  }
+                },
+                child: const Text("CONFIRM CHECK-OUT"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showReceiptPrompt(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Check-Out Confirmation"),
+        title: const Text("Checkout Complete"),
+        content: const Text("Would you like to generate a receipt for this customer?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NO, LATER")),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ReceiptService.showPrintOptions(context, booking);
+            },
+            child: const Text("GENERATE RECEIPT"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFinishCleaningDialog(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Unit Cleaning"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Customer: ${booking['customerName']}"),
-            Text("Amount Paid: ₹${booking['advancePayment']}"),
+            Text("Unit: ${FormatUtils.formatUnit(booking['category'], booking['unitNumber'])}"),
             const SizedBox(height: 10),
-            if (!hasFullPayment)
-              TextField(
-                controller: totalController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Total Bill Amount (₹)"),
-              )
-            else
-              Text("Status: Paid in Full (₹$existingTotal)", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4CAF50))),
+            const Text("This unit is currently being cleaned. Has the cleaning been finished?"),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NOT YET")),
           ElevatedButton(
             onPressed: () async {
-              final total = double.tryParse(totalController.text) ?? 0;
-              await ref.read(bookingRepositoryProvider).checkOut(
-                bookingId: booking['id'],
-                totalPayment: total,
-                paymentMode: "Cash",
-              );
-              
+              Navigator.pop(context);
+              await ref.read(bookingRepositoryProvider).setAvailable(booking['id']);
               if (mounted) {
-                Navigator.pop(context);
-                
-                // Show choice for receipt
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Checkout Complete"),
-                    content: const Text("Would you like to generate a receipt for this customer?"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("NO, LATER"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // We pass the updated values to the generator
-                          final updatedBooking = {
-                            ...booking,
-                            'totalPayment': total,
-                            'paymentMode': 'Cash',
-                            'checkOutAt': Timestamp.now(),
-                          };
-                          ReceiptService.showPrintOptions(context, updatedBooking);
-                        },
-                        child: const Text("GENERATE RECEIPT"),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              
-              if (mounted) {
-                messengerKey.currentState?.showSnackBar(
-                  const SnackBar(content: Text("Checked out successfully!")),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Unit marked as available!")));
               }
             },
-            child: const Text("CONFIRM CHECK-OUT"),
+            style: ElevatedButton.styleFrom(backgroundColor: brandGreen),
+            child: const Text("YES, IT'S READY"),
           ),
         ],
       ),
@@ -902,57 +1395,62 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           return matchesSearch && matchesStatus && matchesCategory;
         }).toList();
 
-        return DefaultTabController(
-          length: 3,
-          child: Column(
-            children: [
-              // Search & Filter Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: searchController,
-                        onChanged: (val) => setState(() => searchQuery = val),
-                        decoration: InputDecoration(
-                          hintText: "Search name or phone...",
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: DefaultTabController(
+              length: 3,
+              child: Column(
+                children: [
+                  // Search & Filter Header
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: searchController,
+                            onChanged: (val) => setState(() => searchQuery = val),
+                            decoration: InputDecoration(
+                              hintText: "Search name or phone...",
+                              prefixIcon: const Icon(Icons.search),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        _filterMenu(),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _filterMenu(),
-                  ],
-                ),
-              ),
+                  ),
 
-              // Categorization Tabs
-              TabBar(
-                labelColor: brandPurple,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: brandPink,
-                tabs: const [
-                  Tab(text: "Today"),
-                  Tab(text: "Month"),
-                  Tab(text: "Year"),
+                  // Categorization Tabs
+                  TabBar(
+                    labelColor: brandPurple,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: brandPink,
+                    tabs: const [
+                      Tab(text: "Today"),
+                      Tab(text: "Month"),
+                      Tab(text: "Year"),
+                    ],
+                  ),
+
+                  // Grouped Content
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _historyListGrouped(filteredList, "day"),
+                        _historyListGrouped(filteredList, "month"),
+                        _historyListGrouped(filteredList, "year"),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-
-              // Grouped Content
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _historyListGrouped(filteredList, "day"),
-                    _historyListGrouped(filteredList, "month"),
-                    _historyListGrouped(filteredList, "year"),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -1025,13 +1523,23 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 ),
               ],
             ),
-            trailing: Column(
+            trailing: Row(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text("₹${b['advancePayment'] + (b['totalPayment'] ?? 0)}", style: TextStyle(color: brandPurple, fontWeight: FontWeight.bold)),
-                Text(status, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+                if (status == 'CHECKED-OUT')
+                  IconButton(
+                    icon: const Icon(Icons.print, color: brandPurple, size: 20),
+                    onPressed: () => ReceiptService.showPrintOptions(context, b),
+                  ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text("₹${b['advancePayment'] + (b['totalPayment'] ?? 0)}", style: TextStyle(color: brandPurple, fontWeight: FontWeight.bold)),
+                    Text(status, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ],
             ),
           ),
@@ -1051,10 +1559,26 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
     if (status == 'checked-out') {
       return wasPrebooked ? "Pre-booked -> In -> Out" : "In -> Checked-out";
     }
+    if (status == 'cleaning') {
+      return "Checked-out -> Cleaning Phase";
+    }
     if (status == 'cancelled') {
       return wasPrebooked ? "Pre-booked -> Cancelled" : "Cancelled";
     }
     return status.toUpperCase();
+  }
+
+  Widget _calcRow(String label, String value, {bool isBold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: color)),
+        ],
+      ),
+    );
   }
 
   Widget arrivalsPage() {
@@ -1134,238 +1658,243 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
       );
     }
 
-    return Column(
-      children: [
-        // Summary bar
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: brandPurple.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: brandPurple.withOpacity(0.15)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _arrivalStat("Total Upcoming Arrivals", filtered.length, brandPurple),
-            ],
-          ),
-        ),
-        // Arrival cards
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              final b = filtered[index];
-              final isPrebooked = b['status'] == 'pre-booked';
-              final cardColor = isPrebooked ? Colors.orange : brandGreen;
-              final rTs = b['reportingDate'] as Timestamp?;
-              if (rTs == null) return const SizedBox();
-              final reportingTime = rTs.toDate();
-              final checkOutDate = b['checkOutDate'] != null
-                  ? (b['checkOutDate'] as Timestamp).toDate()
-                  : null;
-              
-              // Countdown calculation
-              final now = DateTime.now();
-              final diff = reportingTime.difference(now);
-              String countdown;
-              Color countdownColor;
-              if (diff.isNegative) {
-                countdown = isPrebooked ? 'Overdue ${diff.inHours.abs()}h' : 'Checked In';
-                countdownColor = isPrebooked ? Colors.red : brandGreen;
-              } else if (diff.inMinutes < 60) {
-                countdown = 'In ${diff.inMinutes}m';
-                countdownColor = Colors.orange;
-              } else if (diff.inHours < 24) {
-                countdown = 'In ${diff.inHours}h';
-                countdownColor = brandPurple;
-              } else {
-                countdown = DateFormat('hh:mm a').format(reportingTime);
-                countdownColor = Colors.grey;
-              }
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            // Summary bar
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: brandPurple.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: brandPurple.withOpacity(0.15)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _arrivalStat("Total Upcoming Arrivals", filtered.length, brandPurple),
+                ],
+              ),
+            ),
+            // Arrival cards
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final b = filtered[index];
+                  final isPrebooked = b['status'] == 'pre-booked';
+                  final cardColor = isPrebooked ? Colors.orange : brandGreen;
+                  final rTs = b['reportingDate'] as Timestamp?;
+                  if (rTs == null) return const SizedBox();
+                  final reportingTime = rTs.toDate();
+                  final checkOutDate = b['checkOutDate'] != null
+                      ? (b['checkOutDate'] as Timestamp).toDate()
+                      : null;
+                  
+                  // Countdown calculation
+                  final now = DateTime.now();
+                  final diff = reportingTime.difference(now);
+                  String countdown;
+                  Color countdownColor;
+                  if (diff.isNegative) {
+                    countdown = isPrebooked ? 'Overdue ${diff.inHours.abs()}h' : 'Checked In';
+                    countdownColor = isPrebooked ? Colors.red : brandGreen;
+                  } else if (diff.inMinutes < 60) {
+                    countdown = 'In ${diff.inMinutes}m';
+                    countdownColor = Colors.orange;
+                  } else if (diff.inHours < 24) {
+                    countdown = 'In ${diff.inHours}h';
+                    countdownColor = brandPurple;
+                  } else {
+                    countdown = DateFormat('hh:mm a').format(reportingTime);
+                    countdownColor = Colors.grey;
+                  }
 
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                clipBehavior: Clip.antiAlias,
-                child: IntrinsicHeight(
-                  child: Row(
-                    children: [
-                      // Color accent bar
-                      Container(width: 5, color: cardColor),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header row
-                              Row(
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    clipBehavior: Clip.antiAlias,
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          // Color accent bar
+                          Container(width: 5, color: cardColor),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: cardColor.withOpacity(0.15),
-                                    child: Icon(Icons.person, size: 18, color: cardColor),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          b['customerName'] ?? 'Guest',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                        ),
-                                        Text(
-                                          b['phone'] ?? '',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Status badge
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: cardColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          isPrebooked ? 'PRE-BOOKED' : 'CONFIRMED',
-                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: cardColor),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _getPhaseString(b),
-                                        style: TextStyle(fontSize: 8, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // Info row
-                              Wrap(
-                                spacing: 12,
-                                children: [
-                                  _infoChip(Icons.hotel, 'Unit ${b['unitNumber']}', Colors.blueGrey),
-                                  _infoChip(Icons.category, b['category'] ?? '', Colors.blueGrey),
-                                  if (checkOutDate != null)
-                                    _infoChip(Icons.logout, 'Out: ${DateFormat('dd MMM').format(checkOutDate)}', Colors.blueGrey),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // Time + countdown + actions
-                              Wrap(
-                                alignment: WrapAlignment.spaceBetween,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
+                                  // Header row
                                   Row(
-                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.access_time, size: 13, color: Colors.grey[500]),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        DateFormat('hh:mm a').format(reportingTime),
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                      CircleAvatar(
+                                        radius: 16,
+                                        backgroundColor: cardColor.withOpacity(0.15),
+                                        child: Icon(Icons.person, size: 16, color: cardColor),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: countdownColor.withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(4),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              b['customerName'] ?? 'Guest',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                            ),
+                                            Text(
+                                              b['phone'] ?? '',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text(
-                                          countdown, 
-                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: countdownColor),
-                                        ),
+                                      ),
+                                      // Status badge
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: cardColor.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              isPrebooked ? 'PRE-BOOKED' : 'CONFIRMED',
+                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: cardColor),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _getPhaseString(b),
+                                            style: TextStyle(fontSize: 8, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                  if (isPrebooked) 
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: [
-                                        if (diff.isNegative)
-                                          InkWell(
-                                            onTap: () async {
-                                              await ref.read(bookingRepositoryProvider).cancelBooking(b['id'], reason: 'No-Show (Auto-Cancel)');
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.red,
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: const Text('AUTO-CANCEL', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
-                                            ),
+                                  const SizedBox(height: 8),
+                                  // Info row
+                                  Wrap(
+                                    spacing: 12,
+                                    children: [
+                                      _infoChip(Icons.hotel, 'Unit ${b['unitNumber']}', Colors.blueGrey),
+                                      _infoChip(Icons.category, b['category'] ?? '', Colors.blueGrey),
+                                      if (checkOutDate != null)
+                                        _infoChip(Icons.logout, 'Out: ${DateFormat('dd MMM').format(checkOutDate)}', Colors.blueGrey),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Time + countdown + actions
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.access_time, size: 13, color: Colors.grey[500]),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            DateFormat('hh:mm a').format(reportingTime),
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                           ),
-                                        InkWell(
-                                          onTap: () async {
-                                            await ref.read(bookingRepositoryProvider).cancelBooking(b['id']);
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                             decoration: BoxDecoration(
-                                              border: Border.all(color: Colors.red),
-                                              borderRadius: BorderRadius.circular(6),
+                                              color: countdownColor.withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(4),
                                             ),
-                                            child: const Text('CANCEL', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () async {
-                                            await ref.read(bookingRepositoryProvider).confirmCheckIn(b['id']);
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: brandGreen,
-                                              borderRadius: BorderRadius.circular(6),
+                                            child: Text(
+                                              countdown, 
+                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: countdownColor),
                                             ),
-                                            child: const Text('CHECK-IN', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
                                           ),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    InkWell(
-                                      onTap: () => _handleExistingBooking(b),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: brandPurple,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Text('DETAILS', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                        ],
                                       ),
-                                    ),
+                                      if (isPrebooked) 
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: [
+                                            if (diff.isNegative)
+                                              InkWell(
+                                                onTap: () async {
+                                                  await ref.read(bookingRepositoryProvider).cancelBooking(b['id'], reason: 'No-Show (Auto-Cancel)');
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text('AUTO-CANCEL', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                                ),
+                                              ),
+                                            InkWell(
+                                              onTap: () async {
+                                                await ref.read(bookingRepositoryProvider).cancelBooking(b['id']);
+                                              },
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  border: Border.all(color: Colors.red),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text('CANCEL', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ),
+                                            InkWell(
+                                              onTap: () async {
+                                                await _confirmCheckInWithValidation(b);
+                                              },
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: brandGreen,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text('CHECK-IN', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      else
+                                        InkWell(
+                                          onTap: () => _handleExistingBooking(b),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: brandPurple,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Text('DETAILS', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1377,35 +1906,40 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
         if (occupied.isEmpty) {
           return const Center(child: Text("No active check-ins at the moment."));
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: occupied.length,
-          itemBuilder: (context, index) {
-            final b = occupied[index];
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              child: ListTile(
-                onTap: () => _handleExistingBooking(b),
-                leading: const CircleAvatar(backgroundColor: brandGreen, child: Icon(Icons.hotel, color: Colors.white)),
-                title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("${FormatUtils.formatUnit(b['category'], b['unitNumber'])} · ${b['category']}"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _showAddFoodDialog(b),
-                      icon: const Icon(Icons.restaurant, size: 16),
-                      label: const Text("ADD FOOD"),
-                      style: TextButton.styleFrom(foregroundColor: brandPurple),
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: occupied.length,
+              itemBuilder: (context, index) {
+                final b = occupied[index];
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  child: ListTile(
+                    onTap: () => _handleExistingBooking(b),
+                    leading: const CircleAvatar(radius: 18, backgroundColor: brandGreen, child: Icon(Icons.hotel, color: Colors.white, size: 18)),
+                    title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text("${FormatUtils.formatUnit(b['category'], b['unitNumber'])} · ${b['category']}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _showAddFoodDialog(b),
+                          icon: const Icon(Icons.restaurant, size: 16),
+                          label: const Text("ADD FOOD"),
+                          style: TextButton.styleFrom(foregroundColor: brandPurple),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                      ],
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
-                ),
-              ),
-            );
-          },
+                  ),
+                );
+              },
+            ),
+          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1416,53 +1950,216 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   void _showAddFoodDialog(Map<String, dynamic> b) {
     final nameController = TextEditingController();
     final priceController = TextEditingController();
+    
+    // Local state for the session
+    List<Map<String, dynamic>> localItems = List<Map<String, dynamic>>.from(b['foodBills'] ?? []);
+    File? stagedPhoto;
+    int? editingIndex;
+    bool isUploading = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Food Bill - ${b['customerName']}"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController, 
-              decoration: const InputDecoration(labelText: "Item Name", hintText: "e.g. Lunch, Breakfast"),
-              textCapitalization: TextCapitalization.words,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.restaurant_menu, color: brandPurple),
+                const SizedBox(width: 10),
+                Expanded(child: Text("Food Expenses: ${b['customerName']}", style: const TextStyle(fontSize: 18))),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: priceController, 
-              decoration: const InputDecoration(labelText: "Price (₹)", prefixText: "₹ "),
-              keyboardType: TextInputType.number,
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Input Section
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: brandPurple.withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(labelText: "Description (e.g. Dinner)", prefixIcon: Icon(Icons.edit_note)),
+                            textCapitalization: TextCapitalization.words,
+                          ),
+                          TextField(
+                            controller: priceController,
+                            decoration: const InputDecoration(labelText: "Amount (₹)", prefixIcon: Icon(Icons.currency_rupee)),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final picker = ImagePicker();
+                                    final img = await picker.pickImage(source: ImageSource.camera);
+                                    if (img != null) setDialogState(() => stagedPhoto = File(img.path));
+                                  },
+                                  icon: const Icon(Icons.receipt_long),
+                                  label: Text(stagedPhoto != null ? "Photo Captured" : "Add Receipt Photo"),
+                                ),
+                              ),
+                              if (stagedPhoto != null) ...[
+                                const SizedBox(width: 8),
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(stagedPhoto!, width: 40, height: 40, fit: BoxFit.cover),
+                                    ),
+                                    Positioned(
+                                      right: -10, top: -10,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.cancel, size: 18, color: Colors.red),
+                                        onPressed: () => setDialogState(() => stagedPhoto = null),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ]
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: brandPink, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 40)),
+                            onPressed: () {
+                              final name = nameController.text.trim();
+                              final price = double.tryParse(priceController.text.trim()) ?? 0.0;
+                              if (name.isEmpty || price <= 0) return;
+
+                              setDialogState(() {
+                                final newItem = {
+                                  'name': name,
+                                  'price': price,
+                                  'timestamp': Timestamp.now(),
+                                  'localPhoto': stagedPhoto, // Temporarily store File
+                                  'imageUrl': editingIndex != null ? localItems[editingIndex!]['imageUrl'] : null,
+                                };
+
+                                if (editingIndex != null) {
+                                  localItems[editingIndex!] = newItem;
+                                  editingIndex = null;
+                                } else {
+                                  localItems.add(newItem);
+                                }
+
+                                nameController.clear();
+                                priceController.clear();
+                                stagedPhoto = null;
+                              });
+                            },
+                            icon: Icon(editingIndex != null ? Icons.check : Icons.add),
+                            label: Text(editingIndex != null ? "UPDATE ITEM" : "ADD NEXT BILL"),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 15),
+                    const Divider(),
+                    const Text("ITEMIZED BILL LIST", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                    const SizedBox(height: 10),
+                    
+                    if (localItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text("No items added yet", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+                      )
+                    else
+                      ...List.generate(localItems.length, (index) {
+                        final item = localItems[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: brandPurple.withOpacity(0.1),
+                              child: Text("${index + 1}", style: const TextStyle(color: brandPurple, fontSize: 12)),
+                            ),
+                            title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: Text("₹${item['price']}"),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      editingIndex = index;
+                                      nameController.text = item['name'];
+                                      priceController.text = item['price'].toString();
+                                      stagedPhoto = item['localPhoto'] as File?;
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                  onPressed: () => setDialogState(() => localItems.removeAt(index)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white),
-            onPressed: () async {
-              final price = double.tryParse(priceController.text) ?? 0.0;
-              if (nameController.text.isNotEmpty && price > 0) {
-                try {
-                  await ref.read(bookingRepositoryProvider).addFoodItem(b['id'], nameController.text, price);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Added ${nameController.text} to ${b['customerName']}'s bill")),
-                    );
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: brandPurple, 
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                onPressed: isUploading ? null : () async {
+                  setDialogState(() => isUploading = true);
+                  try {
+                    List<Map<String, dynamic>> finalItems = [];
+                    for (var item in localItems) {
+                      String? url = item['imageUrl'];
+                      if (item['localPhoto'] != null) {
+                        url = await CloudinaryService.uploadIdProof(item['localPhoto'] as File);
+                      }
+                      
+                      finalItems.add({
+                        'name': item['name'],
+                        'price': item['price'],
+                        'timestamp': item['timestamp'],
+                        if (url != null) 'imageUrl': url,
+                      });
+                    }
+
+                    await ref.read(bookingRepositoryProvider).setFoodBills(b['id'], finalItems);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Food bills updated successfully!")));
+                    }
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                  } finally {
+                    setDialogState(() => isUploading = false);
                   }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-                  }
-                }
-              }
-            },
-            child: const Text("ADD ITEM"),
-          ),
-        ],
+                },
+                child: isUploading 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text("SAVE ALL CHANGES"),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1519,46 +2216,52 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           return const Center(child: Text("No check-outs recorded for today."));
         }
 
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _sectionHeader("Checked-Out Today (${departures.length})", Icons.fact_check),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: departures.length,
-                itemBuilder: (context, index) {
-                  final b = departures[index];
-                  
-                  return Card(
-                    elevation: 3,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    child: ListTile(
-                      onTap: () => _handleExistingBooking(b),
-                      leading: const CircleAvatar(
-                        backgroundColor: Colors.orange,
-                        child: Icon(Icons.person, color: Colors.white),
-                      ),
-                      title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text("Unit ${b['unitNumber']} | ${b['category']}\nOut at: ${DateFormat('hh:mm a').format((b['checkOutAt'] as Timestamp).toDate())}"),
-                      trailing: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: brandPurple,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          minimumSize: Size.zero
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _sectionHeader("Checked-Out Today (${departures.length})", Icons.fact_check),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: departures.length,
+                    itemBuilder: (context, index) {
+                      final b = departures[index];
+                      
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: ListTile(
+                          onTap: () => _handleExistingBooking(b),
+                          leading: const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.orange,
+                            child: Icon(Icons.person, color: Colors.white, size: 18),
+                          ),
+                          title: Text(b['customerName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text("Unit ${b['unitNumber']} | ${b['category']}\nOut at: ${DateFormat('hh:mm a').format((b['checkOutAt'] as Timestamp).toDate())}"),
+                          trailing: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: brandPurple,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              minimumSize: Size.zero
+                            ),
+                            onPressed: () => _showBookingDetailDialog(b),
+                            child: const Text("DETAILS", style: TextStyle(fontSize: 12, color: Colors.white)),
+                          ),
                         ),
-                        onPressed: () => _showBookingDetailDialog(b),
-                        child: const Text("DETAILS", style: TextStyle(fontSize: 12, color: Colors.white)),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1583,47 +2286,106 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           if (status == 'checked-out') checkedOut++;
         }
 
+        // Filter bookings for the PDF report
+        final filteredBookings = bookings.where((b) {
+          if (reportFilterStatus == "All") return b['status'] != 'cancelled';
+          return b['status'] == reportFilterStatus;
+        }).toList();
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionHeader("Booking Statistics", Icons.pie_chart),
-              const SizedBox(height: 16),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.5,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   _miniReportCard("Pre-booked", "$prebooked", Colors.orange, Icons.history_edu, isSmall: true, onTap: () => setState(() => _currentIndex = 4)),
-                   _miniReportCard("Confirmed", "$occupied", brandGreen, Icons.check_circle, isSmall: true, onTap: () => setState(() => _currentIndex = 1)),
-                   _miniReportCard("Checked-Out", "$checkedOut", brandPurple, Icons.door_back_door, isSmall: true, onTap: () => setState(() { _currentIndex = 2; filterStatus = "Checked Out"; })),
-                   _miniReportCard("Cancelled", "$cancelled", Colors.red, Icons.cancel, isSmall: true, onTap: () => setState(() { _currentIndex = 2; filterStatus = "Cancelled"; })),
+                  _sectionHeader("Booking Statistics", Icons.pie_chart),
+                  const SizedBox(height: 16),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.8,
+                    children: [
+                       _miniReportCard("Pre-booked", "$prebooked", Colors.orange, Icons.history_edu, isSmall: true, onTap: () => setState(() => _currentIndex = 4)),
+                       _miniReportCard("Confirmed", "$occupied", brandGreen, Icons.check_circle, isSmall: true, onTap: () => setState(() => _currentIndex = 1)),
+                       _miniReportCard("Checked-Out", "$checkedOut", brandPurple, Icons.door_back_door, isSmall: true, onTap: () => setState(() { _currentIndex = 2; filterStatus = "Checked Out"; })),
+                       _miniReportCard("Cancelled", "$cancelled", Colors.red, Icons.cancel, isSmall: true, onTap: () => setState(() { _currentIndex = 2; filterStatus = "Cancelled"; })),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  _sectionHeader("Generate Report", Icons.summarize),
+                  const SizedBox(height: 10),
+                  const Text("Filter the categories you want to include in the report:", style: TextStyle(fontSize: 14, color: Colors.blueGrey)),
+                  const SizedBox(height: 10),
+                  
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text("All"),
+                        selected: reportFilterStatus == "All",
+                        onSelected: (v) => setState(() => reportFilterStatus = "All"),
+                        selectedColor: brandPurple.withOpacity(0.2),
+                        checkmarkColor: brandPurple,
+                      ),
+                      FilterChip(
+                        label: const Text("Pre-booked"),
+                        selected: reportFilterStatus == "pre-booked",
+                        onSelected: (v) => setState(() => reportFilterStatus = "pre-booked"),
+                        selectedColor: Colors.orange.withOpacity(0.2),
+                        checkmarkColor: Colors.orange,
+                      ),
+                      FilterChip(
+                        label: const Text("Occupied (In)"),
+                        selected: reportFilterStatus == "occupied",
+                        onSelected: (v) => setState(() => reportFilterStatus = "occupied"),
+                        selectedColor: brandGreen.withOpacity(0.2),
+                        checkmarkColor: brandGreen,
+                      ),
+                      FilterChip(
+                        label: const Text("Checked-Out"),
+                        selected: reportFilterStatus == "checked-out",
+                        onSelected: (v) => setState(() => reportFilterStatus = "checked-out"),
+                        selectedColor: brandPurple.withOpacity(0.2),
+                        checkmarkColor: brandPurple,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 25),
+                  Center(
+                    child: Column(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: filteredBookings.isEmpty ? null : () => ReportService.generateCustomerReport(filteredBookings),
+                          icon: const Icon(Icons.picture_as_pdf),
+                          label: Text("GENERATE ${reportFilterStatus.toUpperCase()} REPORT", style: const TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: brandPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            minimumSize: const Size(300, 50),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          reportFilterStatus == "All" 
+                            ? "Includes all active and completed bookings (${filteredBookings.length} total)"
+                            : "Includes only $reportFilterStatus bookings (${filteredBookings.length} found)",
+                          style: const TextStyle(fontSize: 12, color: Colors.black54, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 25),
-              Center(
-                child: ElevatedButton.icon(
-                  onPressed: bookings.isEmpty ? null : () => ReportService.generateCustomerReport(bookings),
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text("GENERATE CUSTOMER REPORT", style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: brandPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Center(
-                child: Text("Includes all pre-bookings and confirmed bookings",
-                    style: TextStyle(fontSize: 12, color: Colors.black54)),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -1679,9 +2441,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
           children: [
             Center(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(i, size: 35, color: c), 
-                const SizedBox(height: 8), 
-                Text(t, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: c, fontSize: 13))
+                Icon(i, size: 28, color: c), 
+                const SizedBox(height: 6), 
+                Text(t, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: c, fontSize: 11))
               ]),
             ),
             if (count != null && count > 0)
@@ -1772,5 +2534,89 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
         ],
       ),
     );
+  }
+
+  Widget _buildIdSlot({
+    required String label,
+    File? file,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: file != null ? Colors.green : Colors.grey[300]!, width: 2),
+            ),
+            child: file != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      children: [
+                        Image.file(file, width: double.infinity, height: 100, fit: BoxFit.cover),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: GestureDetector(
+                            onTap: onClear,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              child: const Icon(Icons.close, color: Colors.red, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_a_photo, color: Colors.grey, size: 30),
+                      const SizedBox(height: 4),
+                      Text("Tap to capture", style: TextStyle(color: Colors.grey[600], fontSize: 10)),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+      ],
+    );
+  }
+
+  Future<File?> _captureIdImage(String title) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await showDialog<XFile?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              final img = await picker.pickImage(source: ImageSource.camera);
+              if (context.mounted) Navigator.pop(context, img);
+            },
+            icon: const Icon(Icons.camera_alt),
+            label: const Text("Camera"),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              final img = await picker.pickImage(source: ImageSource.gallery);
+              if (context.mounted) Navigator.pop(context, img);
+            },
+            icon: const Icon(Icons.photo_library),
+            label: const Text("Gallery"),
+          ),
+        ],
+      ),
+    );
+    return image != null ? File(image.path) : null;
   }
 }

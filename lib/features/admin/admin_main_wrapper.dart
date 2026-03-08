@@ -5,9 +5,11 @@ import '../../features/auth/login_screen.dart';
 import '../../main.dart';
 import 'booking_history_screen.dart';
 import 'admin_profile_screen.dart';
+import 'admin_reports_page.dart';
 import '../shared/booking_detail_dialog.dart';
 import '../shared/help_support_screen.dart';
 import '../shared/privacy_policy_screen.dart';
+import '../../core/responsive_layout.dart';
 
 class AdminMainWrapper extends ConsumerStatefulWidget {
   const AdminMainWrapper({super.key});
@@ -27,29 +29,60 @@ class _AdminMainWrapperState extends ConsumerState<AdminMainWrapper> {
     const AdminDashboardContent(),
     BookingHistoryScreen(),
     const StaffManagementPage(),
+    const AdminReportsPage(),  // NEW: Reports page
     const SettingsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      body: ResponsiveLayout(
+        mobile: IndexedStack(
+          index: _selectedIndex,
+          children: _pages,
+        ),
+        desktop: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+              labelType: NavigationRailLabelType.all,
+              selectedIconTheme: const IconThemeData(color: brandPurple),
+              selectedLabelTextStyle: const TextStyle(color: brandPurple),
+              destinations: const [
+                NavigationRailDestination(icon: Icon(Icons.dashboard_customize), label: Text('Dashboard')),
+                NavigationRailDestination(icon: Icon(Icons.list_alt_rounded), label: Text('Bookings')),
+                NavigationRailDestination(icon: Icon(Icons.people_alt_rounded), label: Text('Staff')),
+                NavigationRailDestination(icon: Icon(Icons.bar_chart), label: Text('Reports')),  // NEW: Reports page
+                NavigationRailDestination(icon: Icon(Icons.settings), label: Text('Settings')),
+              ],
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _pages,
+              ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: brandPurple,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_customize), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt_rounded), label: 'Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Staff'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-      ),
+      bottomNavigationBar: ResponsiveLayout.isDesktop(context)
+          ? null
+          : BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) => setState(() => _selectedIndex = index),
+              selectedItemColor: brandPurple,
+              unselectedItemColor: Colors.grey,
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.dashboard_customize), label: 'Dashboard'),
+                BottomNavigationBarItem(icon: Icon(Icons.list_alt_rounded), label: 'Bookings'),
+                BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Staff'),
+                BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Reports'),  // NEW: Reports page
+                BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+              ],
+            ),
     );
   }
 }
@@ -97,6 +130,7 @@ class AdminDashboardContent extends ConsumerWidget {
           
           int activeBookings = bookings.where((b) => b['status'] == 'occupied').length;
           int preBooked = bookings.where((b) => b['status'] == 'pre-booked').length;
+          int checkedOut = bookings.where((b) => b['status'] == 'checked-out').length;
           
           // Total units in resort (as defined in inventory) is 44
           int totalUnits = 44;
@@ -118,23 +152,43 @@ class AdminDashboardContent extends ConsumerWidget {
                       ),
                       const Text("Welcome back to your management dashboard.", style: TextStyle(color: Colors.grey)),
                       const SizedBox(height: 25),
+                      
+                      // Quick Reports Cards - Desktop only
+                      if (ResponsiveLayout.isDesktop(context)) ...[
+                        const Text("Quick Reports", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF673AB7))),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildMiniReportCard(context, "Pre-Bookings", "$preBooked", Colors.orange, Icons.calendar_today, 'pre-booked')),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildMiniReportCard(context, "Confirmed", "$activeBookings", Colors.green, Icons.check_circle, 'occupied')),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildMiniReportCard(context, "Checked-Out", "$checkedOut", Colors.purple, Icons.door_back_door, 'checked-out')),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildMiniReportCard(context, "All Bookings", "${bookings.length}", Colors.blue, Icons.list_alt, 'all')),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ],
                   ),
                   loading: () => const SizedBox(height: 50, child: Center(child: CircularProgressIndicator())),
                   error: (e, _) => Text("Error loading profile: $e"),
                 ),
 
-                const Text("Quick Stats", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 15),
-                _buildRevenueCard(totalRevenue),
+                if (!ResponsiveLayout.isDesktop(context))
+                  const Text("Quick Stats", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                if (!ResponsiveLayout.isDesktop(context)) const SizedBox(height: 15),
+                if (!ResponsiveLayout.isDesktop(context)) _buildRevenueCard(totalRevenue),
                 const SizedBox(height: 20),
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
+                  crossAxisCount: ResponsiveLayout.isDesktop(context) ? 4 : (ResponsiveLayout.isTablet(context) ? 3 : 2), 
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
-                  childAspectRatio: 1.1,
+                  childAspectRatio: 1.5,
                   children: [
                     _statTile("Occupied Units", "$activeBookings", Icons.book, Colors.blue),
                     _statTile("Total Staff", "${staffList.length}", Icons.people, Colors.green),
@@ -177,20 +231,20 @@ class AdminDashboardContent extends ConsumerWidget {
 
   Widget _statTile(String title, String val, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: color.withOpacity(0.1)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 10),
-          Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 5),
+          Text(val, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10), textAlign: TextAlign.center),
         ],
       ),
     );
@@ -243,6 +297,32 @@ class AdminDashboardContent extends ConsumerWidget {
       }).toList(),
     );
   }
+
+  Widget _buildMiniReportCard(BuildContext context, String title, String val, Color color, IconData icon, String status) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AdminReportsPage(initialStatus: status)),
+        ),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 5),
+              Text(val, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // --- 3. STAFF MANAGEMENT ---
@@ -254,85 +334,30 @@ class StaffManagementPage extends ConsumerStatefulWidget {
 }
 
 class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _roleController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isSaving = false;
+
+  final List<String> _staffRoles = [
+    'Staff',
+    'Restaurant Manager',
+    'Supervisor',
+    'Receptionist',
+    'Housekeeping',
+    'Chef',
+    'Waiter',
+  ];
 
   static const Color brandPurple = Color(0xFF673AB7);
   static const Color brandPink = Color(0xFFE91E63);
 
-  Future<void> _addStaff() async {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-    final role = _roleController.text.trim();
-    final password = _passwordController.text.trim();
+  // Helper methods removed to be part of StaffFormModalContent
 
-    if (name.isEmpty || email.isEmpty || phone.isEmpty || role.isEmpty || password.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
-      }
-      return;
-    }
-
-    setState(() => _isSaving = true);
-    try {
-      await ref.read(authRepositoryProvider).signUpStaff(
-            email: email,
-            password: password,
-            name: name,
-            phone: phone,
-            role: role,
-          );
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Staff account created successfully!")));
-        _clearControllers();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Registration Failed: $e")));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _editStaff(String uid) async {
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-    final role = _roleController.text.trim();
-
-    if (name.isEmpty || phone.isEmpty || role.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all mandatory fields")));
-      }
-      return;
-    }
-
-    setState(() => _isSaving = true);
-    try {
-      await ref.read(authRepositoryProvider).updateStaffProfile(
-            uid: uid,
-            name: name,
-            phone: phone,
-            role: role,
-          );
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Staff details updated!")));
-        _clearControllers();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Update Failed: $e")));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+  void _showStaffModal({Map<String, dynamic>? staff}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (context) => StaffFormModalContent(staff: staff),
+    );
   }
 
   Future<void> _deleteStaff(String uid) async {
@@ -352,92 +377,18 @@ class _StaffManagementPageState extends ConsumerState<StaffManagementPage> {
       try {
         await ref.read(authRepositoryProvider).deleteStaff(uid);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Staff deleted from records")));
+          messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Staff deleted from records")));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Delete Failed: $e")));
+          messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Delete Failed: $e")));
         }
       }
     }
   }
 
-  void _clearControllers() {
-    _nameController.clear();
-    _emailController.clear();
-    _phoneController.clear();
-    _roleController.clear();
-    _passwordController.clear();
-  }
-
-  void _showStaffModal({Map<String, dynamic>? staff}) {
-    final isEdit = staff != null;
-    if (isEdit) {
-      _nameController.text = staff['name'] ?? '';
-      _emailController.text = staff['email'] ?? '';
-      _phoneController.text = staff['phone'] ?? '';
-      _roleController.text = staff['role'] ?? '';
-      _passwordController.clear();
-    } else {
-      _clearControllers();
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(isEdit ? "Update Staff" : "Create New Staff", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: brandPurple)),
-                const Divider(color: brandPink),
-                const SizedBox(height: 10),
-                TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person_outline))),
-                TextField(controller: _emailController, enabled: !isEdit, decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email_outlined))),
-                TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Phone Number", prefixIcon: Icon(Icons.phone_outlined))),
-                TextField(controller: _roleController, decoration: const InputDecoration(labelText: "Role (e.g., Manager, Receptionist)", prefixIcon: Icon(Icons.work_outline))),
-                TextField(controller: _passwordController, obscureText: true, decoration: InputDecoration(labelText: isEdit ? "New Password (Optional)" : "Initial Password", prefixIcon: const Icon(Icons.lock_outline))),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    onPressed: _isSaving ? null : () async {
-                      setModalState(() => _isSaving = true);
-                      if (isEdit) {
-                        await _editStaff(staff['uid']);
-                      } else {
-                        await _addStaff();
-                      }
-                      setModalState(() => _isSaving = false);
-                    },
-                    child: _isSaving
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(isEdit ? "UPDATE ACCOUNT" : "SAVE STAFF ACCOUNT", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _roleController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -544,6 +495,154 @@ class SettingsPage extends StatelessWidget {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
           }
         },
+      ),
+    );
+  }
+}
+
+class StaffFormModalContent extends ConsumerStatefulWidget {
+  final Map<String, dynamic>? staff;
+  const StaffFormModalContent({super.key, this.staff});
+
+  @override
+  ConsumerState<StaffFormModalContent> createState() => _StaffFormModalContentState();
+}
+
+class _StaffFormModalContentState extends ConsumerState<StaffFormModalContent> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String? _selectedRole;
+  bool _isSaving = false;
+
+  final List<String> _staffRoles = [
+    'Staff',
+    'Restaurant Manager',
+    'Supervisor',
+    'Receptionist',
+    'Housekeeping',
+    'Chef',
+    'Waiter',
+  ];
+
+  static const Color brandPurple = Color(0xFF673AB7);
+  static const Color brandPink = Color(0xFFE91E63);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.staff != null) {
+      _nameController.text = widget.staff!['name'] ?? '';
+      _emailController.text = widget.staff!['email'] ?? '';
+      _phoneController.text = widget.staff!['phone'] ?? '';
+      _selectedRole = widget.staff!['role'];
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    final isEdit = widget.staff != null;
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (name.isEmpty || (isEdit ? false : email.isEmpty) || phone.isEmpty || _selectedRole == null || (isEdit ? false : password.isEmpty)) {
+      messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Please fill all required fields")));
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      if (isEdit) {
+        await ref.read(authRepositoryProvider).updateStaffProfile(
+              uid: widget.staff!['uid'],
+              name: name,
+              phone: phone,
+              role: _selectedRole!,
+            );
+        if (mounted) {
+          Navigator.pop(context);
+          messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Staff details updated!")));
+        }
+      } else {
+        await ref.read(authRepositoryProvider).signUpStaff(
+              email: email,
+              password: password,
+              name: name,
+              phone: phone,
+              role: _selectedRole ?? 'Staff',
+            );
+        if (mounted) {
+          Navigator.pop(context);
+          messengerKey.currentState?.showSnackBar(const SnackBar(content: Text("Staff account created successfully!")));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        messengerKey.currentState?.showSnackBar(SnackBar(content: Text("Operation Failed: $e")));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.staff != null;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isEdit ? "Update Staff" : "Create New Staff", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: brandPurple)),
+            const Divider(color: brandPink),
+            const SizedBox(height: 10),
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person_outline))),
+            TextField(controller: _emailController, enabled: !isEdit, decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email_outlined))),
+            TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Phone Number", prefixIcon: Icon(Icons.phone_outlined))),
+            const SizedBox(height: 15),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              decoration: const InputDecoration(
+                labelText: "Select Role",
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              items: _staffRoles.map((role) {
+                return DropdownMenuItem(
+                  value: role,
+                  child: Text(role),
+                );
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedRole = value),
+            ),
+            TextField(controller: _passwordController, obscureText: true, decoration: InputDecoration(labelText: isEdit ? "New Password (Optional)" : "Initial Password", prefixIcon: const Icon(Icons.lock_outline))),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: brandPurple, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: _isSaving ? null : _handleSave,
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(isEdit ? "UPDATE ACCOUNT" : "SAVE STAFF ACCOUNT", style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
