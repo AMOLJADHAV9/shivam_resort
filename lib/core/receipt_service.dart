@@ -79,7 +79,7 @@ class ReceiptService {
     final gstPercent = (booking['gstPercent'] as num?)?.toDouble() ?? 0.0;
     
     final baseTotal = roomRent; 
-    final grandTotal = baseTotal + gstAmount;
+    final grandTotal = baseTotal + gstAmount + foodTotal;  // Food included, GST only on room rent
     final balancePaidAtCheckout = grandTotal - advance;
     
     final isConfirmed = booking['status'] == 'occupied';
@@ -239,13 +239,14 @@ class ReceiptService {
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                   // Food Expenses (Informational)
+                   // Food Expenses section
                   pw.Expanded(
                     flex: 1,
                     child: foodTotal > 0 ? pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text("FOODING & OTHER SERVICES", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey)),
+                        pw.Text("(No GST on food charges)", style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey600)),
                         pw.SizedBox(height: 5),
                         pw.Table(
                           border: const pw.TableBorder(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
@@ -258,7 +259,7 @@ class ReceiptService {
                           )).toList(),
                         ),
                         pw.SizedBox(height: 5),
-                        pw.Text("Informational Only - Not added to total", style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey600)),
+                        pw.Text("Food Total: INR ${foodTotal.toStringAsFixed(2)}", style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey700)),
                       ],
                     ) : pw.SizedBox(),
                   ),
@@ -274,9 +275,15 @@ class ReceiptService {
                         if (!isConfirmed && remainingRent > 0)
                           _buildSummaryRow("Remaining Payments", remainingRent),
                         if (gstAmount > 0)
-                          _buildSummaryRow("GST ($gstPercent%)", gstAmount),
+                          _buildSummaryRow("GST ($gstPercent% on Rent)", gstAmount),
+                        if (foodTotal > 0)
+                          _buildSummaryRow("Food & Services", foodTotal),
                         pw.Divider(color: PdfColors.grey300),
-                        _buildSummaryRow(gstAmount > 0 ? "GRAND TOTAL (Rent+GST)" : "GRAND TOTAL", grandTotal, isBold: true),
+                        _buildSummaryRow(
+                          gstAmount > 0 ? "GRAND TOTAL (Rent+GST+Food)" : "GRAND TOTAL (Rent+Food)",
+                          grandTotal,
+                          isBold: true,
+                        ),
                       ],
                     ),
                   ),

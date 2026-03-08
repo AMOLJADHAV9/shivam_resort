@@ -2111,8 +2111,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 10),
+                          // Receipt photo row: camera + gallery buttons + preview
                           Row(
                             children: [
+                              // Camera button
                               Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: () async {
@@ -2120,28 +2122,57 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     final img = await picker.pickImage(source: ImageSource.camera);
                                     if (img != null) setDialogState(() => stagedPhoto = File(img.path));
                                   },
-                                  icon: const Icon(Icons.receipt_long),
-                                  label: Text(stagedPhoto != null ? "Photo Captured" : "Add Receipt Photo"),
+                                  icon: const Icon(Icons.camera_alt, size: 18),
+                                  label: const Text("Camera", style: TextStyle(fontSize: 12)),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              // Gallery button
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final picker = ImagePicker();
+                                    final img = await picker.pickImage(source: ImageSource.gallery);
+                                    if (img != null) setDialogState(() => stagedPhoto = File(img.path));
+                                  },
+                                  icon: const Icon(Icons.photo_library, size: 18),
+                                  label: Text(
+                                    stagedPhoto != null ? "Change Photo" : "Gallery",
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                    foregroundColor: brandPurple,
+                                    side: const BorderSide(color: brandPurple),
+                                  ),
+                                ),
+                              ),
+                              // Photo preview thumbnail
                               if (stagedPhoto != null) ...[
                                 const SizedBox(width: 8),
                                 Stack(
+                                  clipBehavior: Clip.none,
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(stagedPhoto!, width: 40, height: 40, fit: BoxFit.cover),
+                                      child: Image.file(stagedPhoto!, width: 44, height: 44, fit: BoxFit.cover),
                                     ),
                                     Positioned(
-                                      right: -10, top: -10,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.cancel, size: 18, color: Colors.red),
-                                        onPressed: () => setDialogState(() => stagedPhoto = null),
+                                      right: -8, top: -8,
+                                      child: GestureDetector(
+                                        onTap: () => setDialogState(() => stagedPhoto = null),
+                                        child: Container(
+                                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                          child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                        ),
                                       ),
-                                    )
+                                    ),
                                   ],
                                 ),
-                              ]
+                              ],
                             ],
                           ),
                           const SizedBox(height: 10),

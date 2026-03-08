@@ -24,7 +24,7 @@ class BookingDetailDialog {
     final gstPercent = (b['gstPercent'] as num?)?.toDouble() ?? 0.0;
     
     final totalStay = advance + remainingRent; 
-    final totalBill = totalStay + foodTotal;
+    final grandTotal = roomRent + gstAmount + foodTotal;  // food included, GST only on rent
     final balance = (b['status'] == 'checked-out') ? 0.0 : (remainingRent + foodTotal);
 
     showDialog(
@@ -178,31 +178,16 @@ class BookingDetailDialog {
 
                 _detailRow(brandPurple, Icons.payments, "Advance Paid", "₹$advance"),
                 _detailRow(brandPurple, Icons.apartment, "Base Room Rent", "₹$roomRent"),
-                if (gstAmount > 0) _detailRow(brandPurple, Icons.percent, "GST ($gstPercent%)", "₹$gstAmount"),
+                if (gstAmount > 0) _detailRow(brandPurple, Icons.percent, "GST ($gstPercent% on Rent only)", "₹$gstAmount"),
                 _detailRow(brandPurple, Icons.pending_actions, "Remaining Rent", "₹$remainingRent"),
+                if (foodTotal > 0) _detailRow(const Color(0xFF2196F3), Icons.restaurant, "Food & Services", "₹${foodTotal.toStringAsFixed(0)}"),
                 const Divider(),
-                _detailRow(brandPurple, Icons.receipt_long, gstAmount > 0 ? "Grand Total (Rent+GST)" : "Grand Total", "₹${(roomRent + gstAmount).toStringAsFixed(0)}", isBold: true),
-                const SizedBox(height: 15),
-                if (foodTotal > 0) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: brandPurple.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("FOOD & SERVICES (Informational)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: brandPurple)),
-                        const SizedBox(height: 4),
-                        Text("₹$foodTotal", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const Text("Paid separately, not in Grand Total.", style: TextStyle(fontSize: 11, color: Colors.black54)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
+                _detailRow(brandPurple, Icons.receipt_long,
+                  gstAmount > 0 ? "Grand Total (Rent+GST+Food)" : "Grand Total (Rent+Food)",
+                  "₹${grandTotal.toStringAsFixed(0)}",
+                  isBold: true,
+                ),
+                const SizedBox(height: 10),
                 if (b['status'] != 'checked-out')
                   _detailRow(brandGreen, Icons.account_balance_wallet, "Due at Checkout", "₹${balance.toStringAsFixed(0)}", isBold: true),
                 const SizedBox(height: 10),
@@ -229,6 +214,14 @@ class BookingDetailDialog {
         ),
       ),
         actions: [
+          // DELETE button (admin action — permanent, requires confirmation)
+          if (b['id'] != null)
+            TextButton.icon(
+              onPressed: () => _confirmAndDelete(context, b),
+              icon: const Icon(Icons.delete_forever, color: Colors.red, size: 18),
+              label: const Text("DELETE", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          const Spacer(),
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("CLOSE")),
           if (b['status'] == 'checked-out')
             ElevatedButton(
@@ -242,6 +235,105 @@ class BookingDetailDialog {
         ],
       ),
     );
+  }
+
+  static Future<void> _confirmAndDelete(BuildContext context, Map<String, dynamic> b) async {
+    final bookingId = b['id']?.toString();
+    if (bookingId == null) return;
+
+    final customerName = b['customerName'] ?? 'this booking';
+    final confirmController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Colors.red),
+              SizedBox(width: 8),
+              Text("Permanent Delete", style: TextStyle(color: Colors.red)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  children: [
+                    const TextSpan(text: "You are about to permanently delete the booking for "),
+                    TextSpan(text: customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const TextSpan(text: ".\n\nThis action "),
+                    const TextSpan(text: "CANNOT be undone", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                    const TextSpan(text: ". Type "),
+                    const TextSpan(text: "DELETE", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Colors.red)),
+                    const TextSpan(text: " to confirm:"),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: "Type DELETE here",
+                  filled: true,
+                  fillColor: Colors.red.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2),
+                  ),
+                ),
+                onChanged: (_) => setS(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              onPressed: confirmController.text.trim() == 'DELETE'
+                  ? () => Navigator.pop(ctx, true)
+                  : null,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              icon: const Icon(Icons.delete_forever, size: 18),
+              label: const Text("CONFIRM DELETE"),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).delete();
+      if (context.mounted) {
+        Navigator.pop(context); // close the detail dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Booking for $customerName deleted permanently."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Delete failed: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   static Widget _detailRow(Color brandPurple, IconData icon, String label, String value, {bool isBold = false}) {

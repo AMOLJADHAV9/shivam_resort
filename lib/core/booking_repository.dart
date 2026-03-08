@@ -212,4 +212,13 @@ class BookingRepository {
       throw 'Failed to mark unit as available: $e';
     }
   }
+
+  /// Permanently delete a booking from Firestore (Admin only).
+  Future<void> deleteBooking(String bookingId) async {
+    try {
+      await _firestore.collection('bookings').doc(bookingId).delete();
+    } catch (e) {
+      throw 'Failed to delete booking: $e';
+    }
+  }
 }

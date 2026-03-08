@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth_provider.dart';
 import '../../features/auth/login_screen.dart';
@@ -178,6 +179,10 @@ class AdminDashboardContent extends ConsumerWidget {
                           ],
                         ),
                         const SizedBox(height: 20),
+                        const Text("Revenue", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF673AB7))),
+                        const SizedBox(height: 12),
+                        _buildRevenueSection(bookings),
+                        const SizedBox(height: 20),
                       ],
                     ],
                   ),
@@ -188,7 +193,7 @@ class AdminDashboardContent extends ConsumerWidget {
                 if (!ResponsiveLayout.isDesktop(context))
                   const Text("Quick Stats", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 if (!ResponsiveLayout.isDesktop(context)) const SizedBox(height: 15),
-                if (!ResponsiveLayout.isDesktop(context)) _buildRevenueCard(totalRevenue),
+                if (!ResponsiveLayout.isDesktop(context)) _buildRevenueSection(bookings),
                 const SizedBox(height: 20),
                 GridView.count(
                   shrinkWrap: true,
@@ -218,22 +223,207 @@ class AdminDashboardContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildRevenueCard(double revenue) {
+  Widget _buildRevenueSection(List<Map<String, dynamic>> bookings) {
+    final now = DateTime.now();
+    final fmt = NumberFormat("#,##0", "en_IN");
+
+    // Helper to sum revenue for a given list
+    double sumRevenue(Iterable<Map<String, dynamic>> list) {
+      return list.fold(0.0, (sum, b) {
+        if (b['status'] == 'checked-out') {
+          return sum + (double.tryParse(b['totalPayment']?.toString() ?? '0') ?? 0.0);
+        } else {
+          return sum + (double.tryParse(b['advancePayment']?.toString() ?? '0') ?? 0.0);
+        }
+      });
+    }
+
+    final nonCancelled = bookings.where((b) => b['status'] != 'cancelled');
+
+    // Today's revenue: bookings created today
+    final todayBookings = nonCancelled.where((b) {
+      final ts = b['createdAt'];
+      if (ts == null) return false;
+      final d = ts.toDate();
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    });
+
+    // This month's revenue
+    final monthBookings = nonCancelled.where((b) {
+      final ts = b['createdAt'];
+      if (ts == null) return false;
+      final d = ts.toDate();
+      return d.year == now.year && d.month == now.month;
+    });
+
+    final totalRevenue = sumRevenue(nonCancelled);
+    final todayRevenue = sumRevenue(todayBookings);
+    final monthRevenue = sumRevenue(monthBookings);
+
+    // Breakdown
+    final occupiedRev = sumRevenue(bookings.where((b) => b['status'] == 'occupied'));
+    final prebooked = sumRevenue(bookings.where((b) => b['status'] == 'pre-booked'));
+    final checkedOut = sumRevenue(bookings.where((b) => b['status'] == 'checked-out'));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF673AB7), Color(0xFFE91E63)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: const Color(0xFF673AB7).withOpacity(0.35), blurRadius: 14, offset: const Offset(0, 6)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.white70, size: 18),
+                  const SizedBox(width: 6),
+                  const Text("Revenue Overview", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "₹ ${fmt.format(totalRevenue.toInt())}",
+                style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
+              const Text("Total Realized Revenue (All Time)", style: TextStyle(color: Colors.white54, fontSize: 11)),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Today + Month cards
+        Row(
+          children: [
+            Expanded(
+              child: _miniRevenueCard(
+                label: "Today",
+                amount: todayRevenue,
+                icon: Icons.today_rounded,
+                color: const Color(0xFF4CAF50),
+                fmt: fmt,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _miniRevenueCard(
+                label: DateFormat('MMMM').format(now),
+                amount: monthRevenue,
+                icon: Icons.calendar_month_rounded,
+                color: const Color(0xFF2196F3),
+                fmt: fmt,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 14),
+
+        // Breakdown card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF673AB7).withOpacity(0.1)),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 3))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Revenue Breakdown", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF673AB7))),
+              const SizedBox(height: 12),
+              _breakdownRow("Confirmed (In-house)", occupiedRev, Colors.green, totalRevenue, fmt),
+              const SizedBox(height: 8),
+              _breakdownRow("Checked-Out", checkedOut, const Color(0xFF673AB7), totalRevenue, fmt),
+              const SizedBox(height: 8),
+              _breakdownRow("Pre-Bookings", prebooked, Colors.orange, totalRevenue, fmt),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniRevenueCard({
+    required String label,
+    required double amount,
+    required IconData icon,
+    required Color color,
+    required NumberFormat fmt,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF673AB7), Color(0xFFE91E63)]),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 3))],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Total Realized Revenue", style: TextStyle(color: Colors.white70, fontSize: 16)),
-          const SizedBox(height: 5),
-          Text("₹ ${revenue.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 5),
+              Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "₹ ${fmt.format(amount.toInt())}",
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _breakdownRow(String label, double amount, Color color, double total, NumberFormat fmt) {
+    final pct = total > 0 ? (amount / total).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ),
+            Text("₹ ${fmt.format(amount.toInt())}",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 6,
+          ),
+        ),
+      ],
     );
   }
 
