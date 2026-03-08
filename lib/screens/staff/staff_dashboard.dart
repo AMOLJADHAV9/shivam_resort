@@ -153,7 +153,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 // 2. Customer Type Selection
                 Wrap(
                   spacing: 12,
-                  children: ["Family", "Couple"].map((type) => ChoiceChip(
+                  children: ["Family"].map((type) => ChoiceChip(
                     label: Text(type),
                     selected: customerType == type,
                     selectedColor: brandPink,
@@ -165,7 +165,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 // 2. Input Fields
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: "Customer Name", prefixIcon: Icon(Icons.person))),
                 TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Phone Number", prefixIcon: Icon(Icons.phone))),
-                if (bookingType == "Confirmed" && customerType == "Family") ...[
+                if (bookingType == "Confirmed" && (selectedCategory == "Cottages" || selectedCategory == "Lodging Deluxe")) ...[
                   TextField(controller: idProofController, decoration: const InputDecoration(labelText: "Aadhar / ID Proof", prefixIcon: Icon(Icons.badge))),
                   const Text("ID Proof Images (Front & Back)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                   const SizedBox(height: 10),
@@ -352,7 +352,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       ),
                       child: Column(
                         children: [
-                          _calcRow("Total Rent", "₹${total.toStringAsFixed(0)}", isBold: true),
+                          _calcRow("Package: $selectedCapacity", "₹${total.toStringAsFixed(0)}", isBold: true),
                           _calcRow("Paid (Advance)", "- ₹${adv.toStringAsFixed(0)}"),
                           _calcRow("Balance Remaining", "₹${rem.toStringAsFixed(0)}", color: brandPink, isBold: true),
                         ],
@@ -412,7 +412,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       return;
                     }
                     
-                    if (bookingType == "Confirmed" && customerType == "Family" && idProofController.text.trim().isEmpty) {
+                    if (bookingType == "Confirmed" && (selectedCategory == "Cottages" || selectedCategory == "Lodging Deluxe") && idProofController.text.trim().isEmpty) {
                       if (context.mounted) {
                         messengerKey.currentState?.showSnackBar(
                           const SnackBar(content: Text("ID Proof is mandatory for confirmed bookings")),
