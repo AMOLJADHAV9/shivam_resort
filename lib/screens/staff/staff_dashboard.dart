@@ -331,7 +331,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     remainingPaymentController.text = (rent - adv).toStringAsFixed(0);
                     setModalState(() {});
                   },
-                  decoration: const InputDecoration(labelText: "Room Rent (₹)", prefixIcon: Icon(Icons.apartment))
+                  decoration: const InputDecoration(labelText: "Package (₹)", prefixIcon: Icon(Icons.apartment))
                 ),
 
                 const SizedBox(height: 15),
