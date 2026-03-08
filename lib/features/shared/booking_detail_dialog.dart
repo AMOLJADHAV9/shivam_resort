@@ -35,7 +35,13 @@ class BookingDetailDialog {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(b['customerName'] ?? 'Guest', style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text("${FormatUtils.formatUnit(b['category'], b['unitNumber'])} - ${b['category']}", style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            Builder(
+              builder: (context) {
+                final unitsList = b['unitNumbers'] as List? ?? (b['unitNumber'] != null ? [b['unitNumber']] : []);
+                final unitsStr = unitsList.join(', ');
+                return Text("Unit(s): $unitsStr - ${b['category']}", style: const TextStyle(fontSize: 14, color: Colors.black54));
+              }
+            ),
           ],
         ),
         content: ConstrainedBox(

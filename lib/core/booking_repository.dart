@@ -33,7 +33,7 @@ class BookingRepository {
         .collection('bookings')
         .where('category', isEqualTo: category)
         .where('capacity', isEqualTo: capacity)
-        .where('unitNumber', isEqualTo: unitNumber)
+        .where('unitNumbers', arrayContains: unitNumber)
         .where('status', whereIn: ['pre-booked', 'occupied', 'cleaning'])
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
@@ -45,7 +45,8 @@ class BookingRepository {
     String idProof = '',
     required String category,
     required String capacity,
-    required dynamic unitNumber,
+    dynamic unitNumber, // Legacy field, will use first of unitNumbers if provided
+    List<dynamic>? unitNumbers, // New field for multi-unit selection
     required DateTime reportingDate,
     required DateTime checkOutDate,
     double advancePayment = 0.0,
@@ -72,13 +73,18 @@ class BookingRepository {
       final reportingTs = Timestamp.fromDate(reportingDate);
       final checkOutTs = Timestamp.fromDate(checkOutDate);
 
+      // Determine the list of units and the primary unit
+      final finalUnitNumbers = unitNumbers ?? (unitNumber != null ? [unitNumber] : []);
+      final primaryUnit = finalUnitNumbers.isNotEmpty ? finalUnitNumbers.first : unitNumber;
+
       await _firestore.collection('bookings').add({
         'customerName': customerName,
         'phone': phone,
         'idProof': idProof,
         'category': category,
         'capacity': capacity,
-        'unitNumber': unitNumber,
+        'unitNumber': primaryUnit, // For backward compatibility
+        'unitNumbers': finalUnitNumbers, // Store as a list
         'reportingDate': reportingTs,
         'checkOutDate': checkOutTs,
         'advancePayment': advancePayment,

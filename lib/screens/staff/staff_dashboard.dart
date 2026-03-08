@@ -16,10 +16,10 @@ import '../../features/auth/login_screen.dart';
 import '../../features/staff/staff_profile_screen.dart';
 import '../../features/shared/help_support_screen.dart';
 import '../../features/shared/privacy_policy_screen.dart';
-import '../../main.dart';
 
 class StaffDashboard extends ConsumerStatefulWidget {
-  const StaffDashboard({super.key});
+  final bool isEmbedded;
+  const StaffDashboard({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<StaffDashboard> createState() => _StaffDashboardState();
@@ -59,6 +59,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
   String filterCategory = "All";
   String reportFilterStatus = "All"; // "All", "pre-booked", "occupied", "checked-out"
   int _arrivalsInitialTab = 0; // 0 = Today, 1 = Tomorrow
+
+  // Multi-unit selection state
+  Set<dynamic> selectedUnitsCount = {}; 
 
   bool _isSaving = false;
   File? _idImage;
@@ -454,7 +457,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         idProof: idProofController.text.trim(),
                         category: selectedCategory!,
                         capacity: selectedCapacity!,
-                        unitNumber: selectedUnit!,
+                        unitNumbers: selectedUnitsCount.toList(), // Pass the list of units
                         reportingDate: selectedDate!,
                         checkOutDate: expectedCheckOutDate!,
                         advancePayment: advance,
@@ -506,7 +509,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       'idProof': idProofController.text.trim(),
                                       'category': selectedCategory!,
                                       'capacity': selectedCapacity!,
-                                      'unitNumber': selectedUnit!,
+                                      'unitNumbers': selectedUnitsCount.toList(),
                                       'reportingDate': bookingCheckIn != null ? Timestamp.fromDate(bookingCheckIn) : null,
                                       'checkOutDate': bookingCheckOut != null ? Timestamp.fromDate(bookingCheckOut) : null,
                                       'checkInAt': bookingCheckIn != null ? Timestamp.fromDate(bookingCheckIn) : null,
@@ -555,6 +558,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                            _idImage = null;
                            _idImageBack = null;
                            _guestPhoto = null;
+                           selectedUnitsCount.clear();
                         });
                       }
                     } catch (e) {
@@ -701,7 +705,12 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
               const SizedBox(height: 8),
               Wrap(spacing: 8, children: inventory.keys.map((c) => ChoiceChip(
                 label: Text(c), selected: selectedCategory == c, selectedColor: brandPink,
-                onSelected: (v) => setState(() { selectedCategory = c; selectedCapacity = null; selectedUnit = null; }),
+                onSelected: (v) => setState(() { 
+                  selectedCategory = c; 
+                  selectedCapacity = null; 
+                  selectedUnit = null; 
+                  selectedUnitsCount.clear(); // Reset selection
+                }),
               )).toList()),
               
               if (selectedCategory != null) ...[
@@ -709,7 +718,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                 _sectionHeader("Capacity", Icons.groups),
                 Wrap(spacing: 8, children: currentCapacities.keys.map((cap) => ChoiceChip(
                   label: Text(cap), selected: selectedCapacity == cap, selectedColor: brandPurple,
-                  onSelected: (v) => setState(() { selectedCapacity = cap; selectedUnit = null; }),
+                  onSelected: (v) => setState(() { 
+                    selectedCapacity = cap; 
+                    selectedUnit = null; 
+                    selectedUnitsCount.clear(); // Reset selection
+                  }),
                 )).toList()),
               ],
 
@@ -810,8 +823,25 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
 
                     return GestureDetector(
                       onTap: () {
-                        // Always open the calendar sheet
-                        setState(() => selectedUnit = unitNum);
+                        if (status == 'Available') {
+                          // Toggle multi-selection for available units
+                          setState(() {
+                            if (selectedUnitsCount.contains(unitNum)) {
+                              selectedUnitsCount.remove(unitNum);
+                            } else {
+                              selectedUnitsCount.add(unitNum);
+                            }
+                            selectedUnit = selectedUnitsCount.isNotEmpty ? selectedUnitsCount.first : null;
+                          });
+                          return;
+                        }
+
+                        // For already booked/cleaning units, show calendar/management options
+                        setState(() { 
+                          selectedUnit = unitNum;
+                          selectedUnitsCount.clear(); // Reset selection when interacting with a booked unit
+                        });
+                        
                         showUnitCalendar(
                           context,
                           category: selectedCategory!,
@@ -820,10 +850,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                           chargingMode: chargingMode,
                           currentBooking: (status != 'Available' && status != 'cleaning') ? booking : null,
                           onBookDates: (checkIn, checkOut) {
-                            // Pre-fill dates and open the customer form
+                            // Pre-fill dates and open the customer form for this single unit
                             setState(() {
                               selectedDate = checkIn;
                               expectedCheckOutDate = checkOut;
+                              selectedUnitsCount = {unitNum};
                             });
                             openCustomerForm();
                           },
@@ -852,58 +883,95 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                           return;
                         }
                       },
+                      onLongPress: () {
+                        // Long press to enter multi-select even if it was not started
+                        if (status == 'Available') {
+                          setState(() {
+                            selectedUnitsCount.add(unitNum);
+                            selectedUnit = selectedUnitsCount.first;
+                          });
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isSolid ? chipColor : chipColor.withOpacity(0.2),
+                          color: selectedUnitsCount.contains(unitNum) 
+                              ? brandPurple.withOpacity(0.8) // Highlight selected units
+                              : (isSolid ? chipColor : chipColor.withOpacity(0.2)),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isSolid ? chipColor : chipColor.withOpacity(0.5), width: 1),
-                          boxShadow: isSolid ? [BoxShadow(color: chipColor.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                          border: Border.all(
+                            color: selectedUnitsCount.contains(unitNum)
+                                ? brandPurple
+                                : (isSolid ? chipColor : chipColor.withOpacity(0.5)), 
+                            width: selectedUnitsCount.contains(unitNum) ? 2 : 1
+                          ),
+                          boxShadow: (isSolid || selectedUnitsCount.contains(unitNum)) 
+                              ? [BoxShadow(color: (selectedUnitsCount.contains(unitNum) ? brandPurple : chipColor).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))] 
+                              : null,
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        child: Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            Row(
+                            Column(
                               mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Icon(
-                                  status == 'Available' ? Icons.check_circle_outline
-                                    : status == 'occupied' ? Icons.hotel
-                                    : status == 'cleaning' ? Icons.cleaning_services
-                                    : Icons.event_seat,
-                                  size: 14,
-                                  color: status == 'Available' ? Colors.blueGrey : (isOverdue ? Colors.red : chipColor),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      selectedUnitsCount.contains(unitNum) ? Icons.check_circle
+                                        : (status == 'Available' ? Icons.check_circle_outline
+                                          : status == 'occupied' ? Icons.hotel
+                                          : status == 'cleaning' ? Icons.cleaning_services
+                                          : Icons.event_seat),
+                                      size: 14,
+                                      color: selectedUnitsCount.contains(unitNum)
+                                          ? Colors.white
+                                          : (status == 'Available' ? Colors.blueGrey : (isOverdue ? Colors.red : chipColor)),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        FormatUtils.formatUnit(selectedCategory, unitNum),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold, 
+                                          fontSize: 13, 
+                                          color: selectedUnitsCount.contains(unitNum) ? Colors.white : textColor
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    FormatUtils.formatUnit(selectedCategory, unitNum),
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor),
-                                    overflow: TextOverflow.ellipsis,
+                                Text(
+                                  selectedUnitsCount.contains(unitNum) ? "SELECTED" : (isOverdue ? "OVERDUE" : (status == 'Available' ? 'Available' : status.toUpperCase())),
+                                  style: TextStyle(
+                                    fontSize: 10, 
+                                    color: (isSolid || selectedUnitsCount.contains(unitNum)) ? Colors.white.withOpacity(0.9) : chipColor, 
+                                    fontWeight: FontWeight.w900, 
+                                    letterSpacing: 0.5
                                   ),
                                 ),
+                                if (dateLabel.isNotEmpty && !selectedUnitsCount.contains(unitNum))
+                                  Text(dateLabel, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                                if (timeHint.isNotEmpty && !selectedUnitsCount.contains(unitNum))
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(timeHint, style: TextStyle(fontSize: 9, color: isOverdue ? Colors.red[700] : Colors.black87, fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal)),
+                                  ),
                               ],
                             ),
-                            Text(
-                              isOverdue ? "OVERDUE" : (status == 'Available' ? 'Available' : status.toUpperCase()),
-                              style: TextStyle(fontSize: 10, color: isSolid ? Colors.white.withOpacity(0.9) : chipColor, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                            ),
-                            if (dateLabel.isNotEmpty)
-                              Text(dateLabel, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                            if (timeHint.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(timeHint, style: TextStyle(fontSize: 9, color: isOverdue ? Colors.red[700] : Colors.black87, fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal)),
+                            if (selectedUnitsCount.contains(unitNum))
+                              const Positioned(
+                                top: -12,
+                                right: -12,
+                                child: CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: brandPurple,
+                                  child: Icon(Icons.check, size: 12, color: Colors.white),
+                                ),
                               ),
-                            // Tap icon hint
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                status == 'Available' ? '📅 Tap to book' : '📅 Tap for calendar',
-                                style: const TextStyle(fontSize: 9, color: Colors.black45),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -914,13 +982,70 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
               loading: () => const CircularProgressIndicator(),
               error: (e, _) => Text("Error loading units: $e"),
             ),
-          ],
-        ],
+                const SizedBox(height: 20),
+                if (selectedUnitsCount.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: brandPurple.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: brandPurple.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.shopping_basket_outlined, color: brandPurple),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "${selectedUnitsCount.length} Unit(s) Selected",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: brandPurple),
+                                  ),
+                                  Text(
+                                    "Selected: ${selectedUnitsCount.join(', ')}",
+                                    style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => setState(() => selectedUnitsCount.clear()),
+                              child: const Text("Clear", style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                             if (selectedUnitsCount.isEmpty) return;
+                             openCustomerForm();
+                          },
+                          icon: const Icon(Icons.add_circle),
+                          label: const Text("Book Selected Units", style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: brandPurple,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ],
+            ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
-}
+    );
+  }
+
 
   void _handleExistingBooking(Map<String, dynamic> booking) {
     showDialog(

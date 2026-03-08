@@ -114,17 +114,19 @@ class ReportService {
                   
                   for (var b in groupBookings) {
                     final category = b['category'] ?? '';
-                    final unitNumber = b['unitNumber']?.toString() ?? '';
                     final capacity = b['capacity'] ?? '';
                     final people = b['totalPeople'] as int? ?? 1;
                     totalPeople += people;
                     
-                    // Format: "Category - UnitNumber (Capacity)"
-                    var unitText = FormatUtils.formatUnit(category, unitNumber);
-                    if (capacity.isNotEmpty && capacity != '0') {
-                      unitText += ' ($capacity)';
+                    final unitsForThisBooking = b['unitNumbers'] as List? ?? (b['unitNumber'] != null ? [b['unitNumber']] : []);
+                    
+                    for (var unitNumber in unitsForThisBooking) {
+                      var unitText = FormatUtils.formatUnit(category, unitNumber.toString());
+                      if (capacity.isNotEmpty && capacity != '0') {
+                        unitText += ' ($capacity)';
+                      }
+                      unitLines.add(unitText);
                     }
-                    unitLines.add(unitText);
                     
                     // Track earliest check-in and latest check-out
                     final checkIn = (b['checkInAt'] as Timestamp?)?.toDate() ?? reportingDate;
@@ -163,7 +165,7 @@ class ReportService {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
       child: pw.Text(text, 
-        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
         textAlign: pw.TextAlign.center,
       ),
     );
@@ -174,7 +176,7 @@ class ReportService {
       padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
       child: pw.Text(
         text, 
-        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
         textAlign: pw.TextAlign.center,
       ),
     );
