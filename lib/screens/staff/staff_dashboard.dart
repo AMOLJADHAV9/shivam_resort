@@ -218,12 +218,14 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "New Multi-Category Booking",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: brandPurple,
+                      const Expanded(
+                        child: Text(
+                          "New Multi-Category Booking",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: brandPurple,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -1506,8 +1508,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: brandPurple.withOpacity(0.2)),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         const Text(
                           "Booking Type:",
@@ -1516,46 +1521,42 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                             color: brandPurple,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              ChoiceChip(
-                                label: const Text(
-                                  "Pre-Booking",
-                                  style: TextStyle(fontSize: 11),
-                                ),
-                                selected: bookingType == "Pre-Booking",
-                                selectedColor: Colors.orange,
-                                labelStyle: TextStyle(
-                                  color: bookingType == "Pre-Booking"
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                                onSelected: (v) => setModalState(
-                                  () => bookingType = "Pre-Booking",
-                                ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text(
+                                "Pre-Booking",
+                                style: TextStyle(fontSize: 11),
                               ),
-                              ChoiceChip(
-                                label: const Text(
-                                  "Confirmed",
-                                  style: TextStyle(fontSize: 11),
-                                ),
-                                selected: bookingType == "Confirm",
-                                selectedColor: brandGreen,
-                                labelStyle: TextStyle(
-                                  color: bookingType == "Confirm"
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                                onSelected: (v) =>
-                                    setModalState(() => bookingType = "Confirm"),
+                              selected: bookingType == "Pre-Booking",
+                              selectedColor: Colors.orange,
+                              labelStyle: TextStyle(
+                                color: bookingType == "Pre-Booking"
+                                    ? Colors.white
+                                    : Colors.black87,
                               ),
-                            ],
-                          ),
+                              onSelected: (v) => setModalState(
+                                () => bookingType = "Pre-Booking",
+                              ),
+                            ),
+                            ChoiceChip(
+                              label: const Text(
+                                "Confirmed",
+                                style: TextStyle(fontSize: 11),
+                              ),
+                              selected: bookingType == "Confirm",
+                              selectedColor: brandGreen,
+                              labelStyle: TextStyle(
+                                color: bookingType == "Confirm"
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                              onSelected: (v) =>
+                                  setModalState(() => bookingType = "Confirm"),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1829,7 +1830,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         Icons.today,
                         brandGreen,
                         () => setState(() {
-                          _currentIndex = 4;
+                          _currentIndex = 5;
                           _arrivalsInitialTab = 0;
                         }),
                         count: todayArrivals,
@@ -1839,7 +1840,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         Icons.event_note,
                         Colors.teal,
                         () => setState(() {
-                          _currentIndex = 4;
+                          _currentIndex = 5;
                           _arrivalsInitialTab = 1;
                         }),
                         count: tomorrowArrivals,
@@ -1848,21 +1849,21 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         "Active Check-ins",
                         Icons.hotel,
                         brandGreen,
-                        () => setState(() => _currentIndex = 7),
+                        () => setState(() => _currentIndex = 8),
                         count: activeCheckIns,
                       ),
                       _homeActionCard(
                         "Cleaning",
                         Icons.cleaning_services,
                         Colors.blueGrey,
-                        () => setState(() => _currentIndex = 5),
+                        () => setState(() => _currentIndex = 4),
                         count: cleaningUnits,
                       ),
                       _homeActionCard(
                         "Check-Outs",
                         Icons.exit_to_app,
                         Colors.orange,
-                        () => setState(() => _currentIndex = 5),
+                        () => setState(() => _currentIndex = 6),
                         count: todayCheckOuts,
                       ),
                       _homeActionCard(
@@ -1875,7 +1876,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                         "Reports",
                         Icons.assessment,
                         Colors.indigo,
-                        () => setState(() => _currentIndex = 6),
+                        () => setState(() => _currentIndex = 7),
                       ),
                     ],
                   ),
@@ -2416,11 +2417,13 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Fooding Items (For Info Only)",
-                          style: TextStyle(
-                            color: Colors.blueGrey,
-                            fontWeight: FontWeight.bold,
+                        const Expanded(
+                          child: Text(
+                            "Fooding Items (For Info Only)",
+                            style: TextStyle(
+                              color: Colors.blueGrey,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         TextButton(
@@ -2468,11 +2471,13 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Grand Total (Rent Only)",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                        const Expanded(
+                          child: Text(
+                            "Grand Total (Rent Only)",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                         Text(
@@ -2761,9 +2766,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
               ) ||
               b['phone'].toString().contains(searchQuery);
 
+          String mappedStatus = filterStatus.toLowerCase().replaceAll(" ", "-");
+          if (filterStatus == "Prebooked") mappedStatus = "pre-booked";
+
           final matchesStatus =
-              filterStatus == "All" ||
-              b['status'] == filterStatus.toLowerCase().replaceAll(" ", "-");
+              filterStatus == "All" || b['status'] == mappedStatus;
           final matchesCategory =
               filterCategory == "All" || b['category'] == filterCategory;
 

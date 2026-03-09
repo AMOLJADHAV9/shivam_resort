@@ -548,49 +548,59 @@ class BookingDetailDialog {
           ),
         ),
         actions: [
-          // DELETE button (admin action — permanent, requires confirmation)
-          if (b['id'] != null)
-            TextButton.icon(
-              onPressed: () => _confirmAndDelete(context, b),
-              icon: const Icon(
-                Icons.delete_forever,
-                color: Colors.red,
-                size: 18,
-              ),
-              label: const Text(
-                "DELETE",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // DELETE button (admin action — permanent, requires confirmation)
+                if (b['id'] != null)
+                  TextButton.icon(
+                    onPressed: () => _confirmAndDelete(context, b),
+                    icon: const Icon(
+                      Icons.delete_forever,
+                      color: Colors.red,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      "DELETE",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("CLOSE"),
                 ),
-              ),
+                if (b['status'] == 'checked-out' || b['status'] == 'cleaning')
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ReceiptService.showPrintOptions(context, b);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: brandPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("PRINT RECEIPT"),
+                  ),
+                if (b['status'] == 'cleaning')
+                  ElevatedButton(
+                    onPressed: () => _markAsReady(context, b['id']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: brandGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("MARK AS READY"),
+                  ),
+              ],
             ),
-          const Spacer(),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("CLOSE"),
           ),
-          if (b['status'] == 'checked-out' || b['status'] == 'cleaning')
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ReceiptService.showPrintOptions(context, b);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: brandPurple,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text("PRINT RECEIPT"),
-            ),
-          if (b['status'] == 'cleaning')
-            ElevatedButton(
-              onPressed: () => _markAsReady(context, b['id']),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: brandGreen,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text("MARK AS READY"),
-            ),
         ],
       ),
     );
