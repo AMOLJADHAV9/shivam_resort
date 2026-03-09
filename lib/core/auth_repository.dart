@@ -59,7 +59,7 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred during staff registration: $e';
+      throw 'An error occurred. Please check your credentials or internet.';
     } finally {
       await tempApp?.delete();
     }
@@ -100,7 +100,7 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred during registration: $e';
+      throw 'An error occurred. Please check your credentials or internet.';
     }
   }
 
@@ -124,8 +124,14 @@ class AuthRepository {
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } on FirebaseException catch (e) {
+      if (e.code == 'network-request-failed' || e.code == 'unavailable') {
+        throw 'check the internet internet is slow';
+      }
+      throw 'An error occurred. Please check your credentials or internet.';
     } catch (e) {
-      throw 'An unexpected error occurred during login: $e';
+      if (e.toString().contains('Unauthorized')) rethrow;
+      throw 'An error occurred. Please check your credentials or internet.';
     }
   }
 
@@ -167,8 +173,14 @@ class AuthRepository {
       throw 'Unauthorized: Account not found in management records.';
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } on FirebaseException catch (e) {
+      if (e.code == 'network-request-failed' || e.code == 'unavailable') {
+        throw 'check the internet internet is slow';
+      }
+      throw 'An error occurred. Please check your credentials or internet.';
     } catch (e) {
-      throw 'An unexpected error occurred during login: $e';
+      if (e.toString().contains('Unauthorized')) rethrow;
+      throw 'An error occurred. Please check your credentials or internet.';
     }
   }
 
@@ -213,7 +225,7 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
-      throw 'An unexpected error occurred during staff login: $e';
+      throw 'An error occurred. Please check your credentials or internet.';
     }
   }
 
@@ -292,15 +304,20 @@ class AuthRepository {
       case 'invalid-email':
         return 'The email address is not valid.';
       case 'user-not-found':
-        return 'No user found for that email.';
       case 'wrong-password':
-        return 'Wrong password provided for that user.';
+      case 'invalid-credential':
+      case 'internal-error':
+        return 'password is wrongs  please enter valid passwprd';
       case 'user-disabled':
         return 'This user has been disabled.';
       case 'operation-not-allowed':
         return 'Email/password accounts are not enabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'check the internet internet is slow';
       default:
-        return e.message ?? 'An unknown authentication error occurred.';
+        return 'An error occurred. Please check your credentials or internet.';
     }
   }
 }

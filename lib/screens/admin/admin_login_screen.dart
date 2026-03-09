@@ -17,6 +17,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _loginAdmin() async {
     final email = _emailController.text.trim();
@@ -53,8 +54,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         );
       }
     } finally {
-      // Navigation happens immediately on success
-      // Only update loading state on error
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -317,13 +319,23 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword,
+        obscureText: isPassword ? _obscurePassword : false,
         keyboardType: keyboardType,
         style: const TextStyle(fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: Colors.black45, fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF673AB7), size: 20),
+          suffixIcon: isPassword 
+            ? IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: const Color(0xFF673AB7),
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              )
+            : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(color: Colors.grey.withOpacity(0.1)),

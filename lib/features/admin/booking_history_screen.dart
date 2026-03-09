@@ -9,14 +9,15 @@ class BookingHistoryScreen extends ConsumerStatefulWidget {
   const BookingHistoryScreen({super.key});
 
   @override
-  ConsumerState<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
+  ConsumerState<BookingHistoryScreen> createState() =>
+      _BookingHistoryScreenState();
 }
 
 class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   String _selectedStatus = "All";
-  
+
   // Brand colors matching Admin UI
   static const Color brandPurple = Color(0xFF673AB7);
 
@@ -38,7 +39,10 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: const Text("Booking History", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Booking History",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: brandPurple,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -48,17 +52,24 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
             children: [
               // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                  onChanged: (val) =>
+                      setState(() => _searchQuery = val.toLowerCase()),
                   decoration: InputDecoration(
                     hintText: "Search by guest name or phone...",
                     prefixIcon: const Icon(Icons.search, color: brandPurple),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
@@ -70,7 +81,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
         children: [
           // Filter Chips
           _buildFilterScroll(),
-          
+
           Expanded(
             child: allBookingsAsync.when(
               data: (bookings) {
@@ -81,7 +92,8 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: filtered.length,
-                  itemBuilder: (context, index) => _buildBookingCard(filtered[index]),
+                  itemBuilder: (context, index) =>
+                      _buildBookingCard(filtered[index]),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -94,7 +106,13 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   }
 
   Widget _buildFilterScroll() {
-    final statuses = ["All", "pre-booked", "occupied", "checked-out", "cancelled"];
+    final statuses = [
+      "All",
+      "pre-booked",
+      "occupied",
+      "checked-out",
+      "cancelled",
+    ];
     return Container(
       height: 50,
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -107,7 +125,14 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
           final s = statuses[i];
           final isSelected = _selectedStatus == s;
           return ChoiceChip(
-            label: Text(s == "All" ? "All Status" : s.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black87)),
+            label: Text(
+              s == "All" ? "All Status" : s.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : Colors.black87,
+              ),
+            ),
             selected: isSelected,
             selectedColor: brandPurple,
             onSelected: (val) => setState(() => _selectedStatus = s),
@@ -117,17 +142,21 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> bookings) {
+  List<Map<String, dynamic>> _applyFilters(
+    List<Map<String, dynamic>> bookings,
+  ) {
     return bookings.where((b) {
       // 1. Status Filter
-      bool statusMatch = _selectedStatus == "All" || (b['status'] ?? "") == _selectedStatus;
+      bool statusMatch =
+          _selectedStatus == "All" || (b['status'] ?? "") == _selectedStatus;
 
       // 3. Search Filter
       bool searchMatch = true;
       if (_searchQuery.isNotEmpty) {
         final name = (b['customerName'] ?? "").toString().toLowerCase();
         final phone = (b['phone'] ?? "").toString().toLowerCase();
-        searchMatch = name.contains(_searchQuery) || phone.contains(_searchQuery);
+        searchMatch =
+            name.contains(_searchQuery) || phone.contains(_searchQuery);
       }
 
       return statusMatch && searchMatch;
@@ -137,7 +166,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   Widget _buildBookingCard(Map<String, dynamic> b) {
     final status = b['status'] ?? 'unknown';
     final date = (b['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    
+
     Color statusColor = Colors.grey;
     if (status == 'pre-booked') statusColor = Colors.orange;
     if (status == 'occupied') statusColor = Colors.green;
@@ -147,7 +176,10 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.grey.withOpacity(0.1))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+      ),
       child: InkWell(
         onTap: () => BookingDetailDialog.show(context, b),
         borderRadius: BorderRadius.circular(15),
@@ -158,7 +190,10 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
               Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Icon(Icons.person, color: statusColor),
               ),
               const SizedBox(width: 16),
@@ -166,11 +201,20 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(b['customerName'] ?? 'Guest', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(
+                      b['customerName'] ?? 'Guest',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      "${b['category']} - Unit ${b['unitNumber']}", 
-                      style: const TextStyle(color: Colors.black54, fontSize: 12)
+                      "${b['category']} - Unit ${b['unitNumber']}",
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
                     ),
                     Text(
                       DateFormat('dd/MM/yyyy, hh:mm a').format(date),
@@ -184,22 +228,88 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      "₹${b['totalPayment'] ?? b['advancePayment'] ?? 0}", 
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: brandPurple, fontSize: 16),
+                      "₹${b['totalPayment'] ?? b['advancePayment'] ?? 0}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: brandPurple,
+                        fontSize: 16,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                       child: Text(
                         status.toUpperCase(),
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusColor),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text("Delete Booking?"),
+                      content: const Text(
+                        "Are you sure you want to permanently delete this booking? This action cannot be undone.",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text("Cancel"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            try {
+                              await ref
+                                  .read(bookingRepositoryProvider)
+                                  .deleteBooking(b['id']);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Booking deleted successfully.",
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error deleting booking: $e"),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text("Delete"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -215,7 +325,10 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
         children: [
           Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text("No bookings found for the selected filters.", style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          Text(
+            "No bookings found for the selected filters.",
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
         ],
       ),
     );

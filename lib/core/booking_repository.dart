@@ -42,6 +42,7 @@ class BookingRepository {
   Future<void> saveBooking({
     required String customerName,
     required String phone,
+    String customerGst = '',
     String idProof = '',
     required String category,
     required String capacity,
@@ -55,6 +56,7 @@ class BookingRepository {
     required String status, // 'pre-booked' or 'occupied'
     double remainingRent = 0.0,
     double roomRent = 0.0,
+    double discountAmount = 0.0,
     String chargingMode = '24h',
     int totalPeople = 1,
     String? idImageUrl,
@@ -63,6 +65,8 @@ class BookingRepository {
     String customerType = 'Family',
     String? packageName,
     List<String>? packageInclusions,
+    List<Map<String, dynamic>>? bookingItems,
+    String paymentMethod = 'Cash',
   }) async {
     try {
       // Basic validation for dates
@@ -80,6 +84,7 @@ class BookingRepository {
       await _firestore.collection('bookings').add({
         'customerName': customerName,
         'phone': phone,
+        'customerGst': customerGst,
         'idProof': idProof,
         'category': category,
         'capacity': capacity,
@@ -92,6 +97,7 @@ class BookingRepository {
         'gstAmount': gstAmount,
         'remainingRent': remainingRent,
         'roomRent': roomRent,
+        'discountAmount': discountAmount,
         'status': status,
         'chargingMode': chargingMode,
         'totalPeople': totalPeople,
@@ -105,6 +111,8 @@ class BookingRepository {
         if (packageInclusions != null) 'packageInclusions': packageInclusions,
         if (status == 'occupied') 'checkInAt': reportingTs,
         if (status == 'occupied') 'totalPayment': roomRent,
+        'bookingItems': bookingItems ?? [],
+        'paymentMethod': paymentMethod,
       });
     } catch (e) {
       throw 'Failed to save booking: $e';

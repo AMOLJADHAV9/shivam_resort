@@ -11,12 +11,16 @@ import '../main.dart';
 
 class ReceiptService {
   static const String resortName = "Shivam Resorts";
-  static const String resortAddress = "Shirol Janapur, road, Kaulkhed, Udgir, Maharashtra 413517";
+  static const String resortAddress =
+      "Shirol Janapur, road, Kaulkhed, Udgir, Maharashtra 413517";
   static const String resortContact = "+91 9022617734";
   static const String resortEmail = "shivamresort8000@gmail.com";
   static const String resortGST = "27BClPP1218GIZP";
 
-  static Future<void> generateAndPrintReceipt(Map<String, dynamic> booking, {bool withGST = false}) async {
+  static Future<void> generateAndPrintReceipt(
+    Map<String, dynamic> booking, {
+    bool withGST = false,
+  }) async {
     final pdf = pw.Document();
 
     final customerName = booking['customerName'] ?? 'Guest';
@@ -24,8 +28,9 @@ class ReceiptService {
     final idProof = booking['idProof'] ?? 'N/A';
     final unitNumber = booking['unitNumber']?.toString() ?? 'N/A';
     final category = booking['category'] ?? 'N/A';
-    final bookingId = booking['id']?.toString() ?? booking['bookingId']?.toString() ?? 'N/A';
-    
+    final bookingId =
+        booking['id']?.toString() ?? booking['bookingId']?.toString() ?? 'N/A';
+
     // Dates — pick the best available timestamps
     final reportingDate = (booking['reportingDate'] as Timestamp?)?.toDate();
     final rawCheckInAt = (booking['checkInAt'] as Timestamp?)?.toDate();
@@ -45,16 +50,18 @@ class ReceiptService {
 
     final checkInAt = resolvedCheckIn;
     final checkOutAt = resolvedCheckOut;
-    
+
     final dateFormat = DateFormat('dd/MM/yyyy, hh:mm a');
-    
+
     // Stay Duration Calculation
     final chargingMode = booking['chargingMode'] ?? '24h';
     int stayDays = 1;
     if (checkInAt != null) {
       if (chargingMode == 'flexible') {
         stayDays = DateTime(checkOutAt.year, checkOutAt.month, checkOutAt.day)
-            .difference(DateTime(checkInAt.year, checkInAt.month, checkInAt.day))
+            .difference(
+              DateTime(checkInAt.year, checkInAt.month, checkInAt.day),
+            )
             .inDays;
       } else {
         final diffMinutes = checkOutAt.difference(checkInAt).inMinutes;
@@ -73,16 +80,43 @@ class ReceiptService {
     // Payments
     final advance = (booking['advancePayment'] as num?)?.toDouble() ?? 0.0;
     final remainingRent = (booking['remainingRent'] as num?)?.toDouble() ?? 0.0;
-    final roomRent = (booking['roomRent'] as num?)?.toDouble() ?? (advance + remainingRent);
-    
-    final gstAmount = (booking['gstAmount'] as num?)?.toDouble() ?? 0.0;
+    final advanceMethod = booking['paymentMethod'] ?? 'N/A';
+    final checkoutMode = booking['paymentMode'] ?? 'N/A';
+    final bookingItems = (booking['bookingItems'] as List?) ?? [];
+
+    // Calculate room rent total from items if available
+    double calculatedRoomRent = 0.0;
+    double calculatedGst = 0.0;
+    double calculatedDiscount = 0.0;
+    if (bookingItems.isNotEmpty) {
+      for (var item in bookingItems) {
+        calculatedRoomRent += (item['package'] as num?)?.toDouble() ?? 0.0;
+        calculatedGst += (item['gst'] as num?)?.toDouble() ?? 0.0;
+        calculatedDiscount += (item['discount'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    final roomRent = bookingItems.isNotEmpty
+        ? calculatedRoomRent
+        : ((booking['roomRent'] as num?)?.toDouble() ??
+              (advance + remainingRent));
+    final gstAmount = bookingItems.isNotEmpty
+        ? calculatedGst
+        : ((booking['gstAmount'] as num?)?.toDouble() ?? 0.0);
+    final discountAmount = bookingItems.isNotEmpty
+        ? calculatedDiscount
+        : ((booking['discountAmount'] as num?)?.toDouble() ?? 0.0);
     final gstPercent = (booking['gstPercent'] as num?)?.toDouble() ?? 0.0;
-    
-    final baseTotal = roomRent; 
-    final grandTotal = baseTotal + gstAmount + foodTotal;  // Food included, GST only on room rent
+
+    final baseTotal = roomRent;
+    final grandTotal =
+        (booking['grandTotal'] as num?)?.toDouble() ??
+        (baseTotal - discountAmount + gstAmount + foodTotal);
     final balancePaidAtCheckout = grandTotal - advance;
-    
-    final isConfirmed = booking['status'] == 'occupied';
+
+    final isCheckedOut =
+        booking['status'] == 'checked-out' || booking['status'] == 'cleaning';
+    final isConfirmed = booking['status'] == 'occupied' || isCheckedOut;
 
     pdf.addPage(
       pw.Page(
@@ -99,29 +133,77 @@ class ReceiptService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(resortName, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.deepPurple900)),
+                      pw.Text(
+                        resortName,
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.deepPurple900,
+                        ),
+                      ),
                       pw.SizedBox(height: 4),
-                      pw.Text(resortAddress, style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                      pw.Text("Contact: $resortContact | Email: $resortEmail", style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                      if (withGST || gstAmount > 0) pw.Text("GSTIN: $resortGST", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        resortAddress,
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      pw.Text(
+                        "Contact: $resortContact | Email: $resortEmail",
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      if (withGST || gstAmount > 0)
+                        pw.Text(
+                          "GSTIN: $resortGST",
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: pw.BoxDecoration(color: PdfColors.deepPurple, borderRadius: pw.BorderRadius.circular(4)),
-                        child: pw.Text("INVOICE", style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.deepPurple,
+                          borderRadius: pw.BorderRadius.circular(4),
+                        ),
+                        child: pw.Text(
+                          "INVOICE",
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                       pw.SizedBox(height: 5),
-                      pw.Text("Receipt #: RE-${bookingId.substring(bookingId.length - 6).toUpperCase()}", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                      pw.Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}", style: pw.TextStyle(fontSize: 10)),
+                      pw.Text(
+                        "Receipt #: RE-${bookingId.length > 6 ? bookingId.substring(bookingId.length - 6).toUpperCase() : bookingId.toUpperCase()}",
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Text(
+                        "Date: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}",
+                        style: pw.TextStyle(fontSize: 10),
+                      ),
                     ],
                   ),
                 ],
               ),
-              
+
               pw.SizedBox(height: 20),
               pw.Divider(color: PdfColors.grey300),
               pw.SizedBox(height: 20),
@@ -136,11 +218,40 @@ class ReceiptService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text("GUEST INFORMATION", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey600)),
+                        pw.Text(
+                          "GUEST INFORMATION",
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
                         pw.SizedBox(height: 5),
-                        pw.Text(customerName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                        pw.Text("Phone: $phone", style: pw.TextStyle(fontSize: 10)),
-                        pw.Text("ID Proof: $idProof", style: pw.TextStyle(fontSize: 10)),
+                        pw.Text(
+                          customerName,
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Text(
+                          "Phone: $phone",
+                          style: pw.TextStyle(fontSize: 10),
+                        ),
+                        if (booking['idProof'] != null)
+                          pw.Text(
+                            "ID Proof: ${booking['idProof']}",
+                            style: pw.TextStyle(fontSize: 10),
+                          ),
+                        if (booking['customerGst'] != null &&
+                            booking['customerGst'].toString().isNotEmpty)
+                          pw.Text(
+                            "GST: ${booking['customerGst']}",
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -150,12 +261,47 @@ class ReceiptService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text("STAY INFORMATION", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey600)),
+                        pw.Text(
+                          "STAY INFORMATION",
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
                         pw.SizedBox(height: 5),
-                        pw.Text("${FormatUtils.formatUnit(category, booking['unitNumber'])} ($category)", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                        pw.Text("Check-In: ${checkInAt != null ? dateFormat.format(checkInAt) : 'N/A'}", style: pw.TextStyle(fontSize: 10)),
-                        pw.Text("Check-Out: ${dateFormat.format(checkOutAt)}", style: pw.TextStyle(fontSize: 10)),
-                        pw.Text("Duration: $stayDays Day(s)", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                        if (bookingItems.isEmpty)
+                          pw.Text(
+                            "${FormatUtils.formatUnit(category, booking['unitNumber'])} ($category)",
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          )
+                        else
+                          pw.Text(
+                            "Multi-Category Booking",
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+
+                        pw.Text(
+                          "Check-In: ${checkInAt != null ? dateFormat.format(checkInAt) : 'N/A'}",
+                          style: pw.TextStyle(fontSize: 10),
+                        ),
+                        pw.Text(
+                          "Check-Out: ${dateFormat.format(checkOutAt)}",
+                          style: pw.TextStyle(fontSize: 10),
+                        ),
+                        pw.Text(
+                          "Duration: $stayDays Day(s)",
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -167,48 +313,93 @@ class ReceiptService {
               // 3. Itemized Billing Table
               pw.Table(
                 border: pw.TableBorder(
-                  horizontalInside: pw.BorderSide(color: PdfColors.grey200, width: 0.5),
+                  horizontalInside: pw.BorderSide(
+                    color: PdfColors.grey200,
+                    width: 0.5,
+                  ),
                   bottom: pw.BorderSide(color: PdfColors.grey900, width: 1),
                 ),
                 columnWidths: {
                   0: const pw.FlexColumnWidth(3),
-                  1: const pw.FlexColumnWidth(1),
+                  1: const pw.FlexColumnWidth(2),
                   2: const pw.FlexColumnWidth(1),
                   3: const pw.FlexColumnWidth(1),
                 },
                 children: [
                   // Table Header
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey100,
+                    ),
                     children: [
-                      _pCell("Description", isHeader: true),
-                      _pCell("Qty", isHeader: true, align: pw.TextAlign.center),
-                      _pCell("Rate", isHeader: true, align: pw.TextAlign.right),
-                      _pCell("Amount", isHeader: true, align: pw.TextAlign.right),
+                      _pCell("Category / Item", isHeader: true),
+                      _pCell(
+                        "Unit No.",
+                        isHeader: true,
+                        align: pw.TextAlign.center,
+                      ),
+                      _pCell("GST", isHeader: true, align: pw.TextAlign.right),
+                      _pCell("Disc", isHeader: true, align: pw.TextAlign.right),
+                      _pCell(
+                        "Package",
+                        isHeader: true,
+                        align: pw.TextAlign.right,
+                      ),
                     ],
                   ),
-                  // Room Rent (Advance)
-                  if (advance > 0)
+
+                  // Multi Booking Items
+                  if (bookingItems.isNotEmpty)
+                    ...bookingItems.map((item) {
+                      final isOther =
+                          item['category'] == 'Other Service' ||
+                          item['category'] == 'Extra Bed';
+                      final categoryDisplay = isOther
+                          ? item['units'].join(", ")
+                          : "${item['category']} (${item['capacity']})";
+                      final unitsDisplay = isOther
+                          ? "1"
+                          : (item['units'] as List).join(", ");
+
+                      return pw.TableRow(
+                        children: [
+                          _pCell(categoryDisplay),
+                          _pCell(unitsDisplay, align: pw.TextAlign.center),
+                          _pCell("₹${item['gst']}", align: pw.TextAlign.right),
+                          _pCell(
+                            "₹${item['discount'] ?? 0}",
+                            align: pw.TextAlign.right,
+                          ),
+                          _pCell(
+                            "₹${item['package']}",
+                            align: pw.TextAlign.right,
+                          ),
+                        ],
+                      );
+                    }).toList()
+                  else ...[
+                    // Legacy single booking
                     pw.TableRow(
                       children: [
-                        _pCell("Booking Rent (Advance Payment)"),
+                        _pCell("$category ($unitNumber)"),
                         _pCell("1", align: pw.TextAlign.center),
-                        _pCell(advance.toStringAsFixed(2), align: pw.TextAlign.right),
-                        _pCell(advance.toStringAsFixed(2), align: pw.TextAlign.right),
+                        _pCell(
+                          gstAmount.toStringAsFixed(2),
+                          align: pw.TextAlign.right,
+                        ),
+                        _pCell(
+                          discountAmount.toStringAsFixed(2),
+                          align: pw.TextAlign.right,
+                        ),
+                        _pCell(
+                          roomRent.toStringAsFixed(2),
+                          align: pw.TextAlign.right,
+                        ),
                       ],
                     ),
-                   // Room Rent (Remaining)
-                  if (remainingRent > 0)
-                    pw.TableRow(
-                      children: [
-                        _pCell("Remaining Rent"),
-                        _pCell("1", align: pw.TextAlign.center),
-                        _pCell(remainingRent.toStringAsFixed(2), align: pw.TextAlign.right),
-                        _pCell(remainingRent.toStringAsFixed(2), align: pw.TextAlign.right),
-                      ],
-                    ),
-                  
-                  // Package Injection
+                  ],
+
+                  // Package Injection (One Day Stay)
                   if (booking['packageName'] != null)
                     pw.TableRow(
                       children: [
@@ -217,15 +408,27 @@ class ReceiptService {
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              pw.Text("PACKAGE: ${booking['packageName']}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                              pw.Text(
+                                "PACKAGE: ${booking['packageName']}",
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
                               if (booking['packageInclusions'] != null)
-                                ...((booking['packageInclusions'] as List).map((inc) => 
-                                  pw.Text("• $inc", style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700))
+                                ...((booking['packageInclusions'] as List).map(
+                                  (inc) => pw.Text(
+                                    "- $inc",
+                                    style: const pw.TextStyle(
+                                      fontSize: 8,
+                                      color: PdfColors.grey700,
+                                    ),
+                                  ),
                                 )),
                             ],
                           ),
                         ),
-                        _pCell("1", align: pw.TextAlign.center),
+                        _pCell("-", align: pw.TextAlign.center),
                         _pCell("-", align: pw.TextAlign.right),
                         _pCell("Included", align: pw.TextAlign.right),
                       ],
@@ -239,29 +442,71 @@ class ReceiptService {
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                   // Food Expenses section
+                  // Food Expenses section
                   pw.Expanded(
                     flex: 1,
-                    child: foodTotal > 0 ? pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text("FOODING & OTHER SERVICES", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey)),
-                        pw.Text("(No GST on food charges)", style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey600)),
-                        pw.SizedBox(height: 5),
-                        pw.Table(
-                          border: const pw.TableBorder(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
-                          children: foodItems.map((item) => pw.TableRow(
+                    child: foodTotal > 0
+                        ? pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              pw.Text("• ${item['name']}", style: const pw.TextStyle(fontSize: 9)),
-                              pw.Text("INR ${((item['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}", 
-                                      style: const pw.TextStyle(fontSize: 9), textAlign: pw.TextAlign.right),
+                              pw.Text(
+                                "FOODING & OTHER SERVICES",
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blueGrey,
+                                ),
+                              ),
+                              pw.Text(
+                                "(No GST on food charges)",
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontStyle: pw.FontStyle.italic,
+                                  color: PdfColors.grey600,
+                                ),
+                              ),
+                              pw.SizedBox(height: 5),
+                              pw.Table(
+                                border: const pw.TableBorder(
+                                  bottom: pw.BorderSide(
+                                    color: PdfColors.grey300,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                children: foodItems
+                                    .map(
+                                      (item) => pw.TableRow(
+                                        children: [
+                                          pw.Text(
+                                            "- ${item['name']}",
+                                            style: const pw.TextStyle(
+                                              fontSize: 9,
+                                            ),
+                                          ),
+                                          pw.Text(
+                                            "INR ${((item['price'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}",
+                                            style: const pw.TextStyle(
+                                              fontSize: 9,
+                                            ),
+                                            textAlign: pw.TextAlign.right,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                              pw.SizedBox(height: 5),
+                              pw.Text(
+                                "Food Total: INR ${foodTotal.toStringAsFixed(2)}",
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blueGrey700,
+                                ),
+                              ),
                             ],
-                          )).toList(),
-                        ),
-                        pw.SizedBox(height: 5),
-                        pw.Text("Food Total: INR ${foodTotal.toStringAsFixed(2)}", style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey700)),
-                      ],
-                    ) : pw.SizedBox(),
+                          )
+                        : pw.SizedBox(),
                   ),
                   pw.SizedBox(width: 40),
                   // Financial Summary
@@ -269,11 +514,15 @@ class ReceiptService {
                     width: 200,
                     child: pw.Column(
                       children: [
-                        _buildSummaryRow("Package", roomRent),
-                        _buildSummaryRow("Advance Payments", advance),
-                        _buildSummaryRow("Remaining Payments", remainingRent),
+                        _buildSummaryRow("Total Package", roomRent),
+                        if (discountAmount > 0)
+                          _buildSummaryRow(
+                            "Total Discount",
+                            "-₹${discountAmount.toStringAsFixed(2)}",
+                            customColor: PdfColors.red,
+                          ),
                         if (gstAmount > 0)
-                          _buildSummaryRow("GST ($gstPercent% on Rent)", gstAmount),
+                          _buildSummaryRow("Total GST", gstAmount),
                         if (foodTotal > 0)
                           _buildSummaryRow("Food & Services", foodTotal),
                         pw.Divider(color: PdfColors.grey300),
@@ -283,16 +532,45 @@ class ReceiptService {
                           isBold: true,
                         ),
                         pw.SizedBox(height: 10),
-                        _buildSummaryRow("Balance Paid", balancePaidAtCheckout),
-                        _buildSummaryRow("Total Amount Paid", grandTotal, isBold: true),
+                        _buildSummaryRow(
+                          "Advance Paid ($advanceMethod)",
+                          advance,
+                        ),
+                        if (isCheckedOut)
+                          _buildSummaryRow(
+                            "Final Payment ($checkoutMode)",
+                            remainingRent,
+                          ),
+                        if (!isCheckedOut)
+                          _buildSummaryRow("Balance Remaining", remainingRent),
+                        pw.Divider(color: PdfColors.grey200),
+                        _buildSummaryRow(
+                          "Total Amount Paid",
+                          (isCheckedOut ? grandTotal : advance),
+                          isBold: true,
+                        ),
                         pw.SizedBox(height: 8),
                         pw.Container(
                           width: double.infinity,
                           padding: const pw.EdgeInsets.symmetric(vertical: 4),
-                          decoration: const pw.BoxDecoration(color: PdfColors.green50),
+                          decoration: pw.BoxDecoration(
+                            color: isConfirmed
+                                ? PdfColors.green50
+                                : PdfColors.orange50,
+                          ),
                           child: pw.Center(
-                            child: pw.Text("PAYMENT STATUS: PAID", 
-                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green900)),
+                            child: pw.Text(
+                              isConfirmed
+                                  ? "PAYMENT STATUS: PAID (PARTIAL/FULL)"
+                                  : "PAYMENT STATUS: DUE",
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: isConfirmed
+                                    ? PdfColors.green900
+                                    : PdfColors.orange900,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -311,26 +589,57 @@ class ReceiptService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text("Terms & Conditions:", style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                      pw.Text("1. This is a computer-generated invoice.", style: pw.TextStyle(fontSize: 8)),
-                      pw.Text("2. Goods once sold/services rendered are not refundable.", style: pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        "Terms & Conditions:",
+                        style: pw.TextStyle(
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Text(
+                        "1. This is a computer-generated invoice.",
+                        style: pw.TextStyle(fontSize: 8),
+                      ),
+                      pw.Text(
+                        "2. Goods once sold/services rendered are not refundable.",
+                        style: pw.TextStyle(fontSize: 8),
+                      ),
                       pw.SizedBox(height: 15),
-                      pw.Text("Customer Signature: ____________________", style: pw.TextStyle(fontSize: 10)),
+                      pw.Text(
+                        "Customer Signature: ____________________",
+                        style: pw.TextStyle(fontSize: 10),
+                      ),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text("Authorized Signatory", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        "Authorized Signatory",
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                       pw.SizedBox(height: 30),
-                      pw.Text("for $resortName", style: pw.TextStyle(fontSize: 10)),
+                      pw.Text(
+                        "for $resortName",
+                        style: pw.TextStyle(fontSize: 10),
+                      ),
                     ],
                   ),
                 ],
               ),
               pw.SizedBox(height: 20),
               pw.Center(
-                child: pw.Text("--- Thank you for staying with us! ---", style: pw.TextStyle(fontSize: 11, fontStyle: pw.FontStyle.italic, color: PdfColors.deepPurple)),
+                child: pw.Text(
+                  "--- Thank you for staying with us! ---",
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontStyle: pw.FontStyle.italic,
+                    color: PdfColors.deepPurple,
+                  ),
+                ),
               ),
             ],
           );
@@ -344,7 +653,11 @@ class ReceiptService {
     );
   }
 
-  static pw.Widget _pCell(String text, {bool isHeader = false, pw.TextAlign align = pw.TextAlign.left}) {
+  static pw.Widget _pCell(
+    String text, {
+    bool isHeader = false,
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(8),
       child: pw.Text(
@@ -358,25 +671,52 @@ class ReceiptService {
     );
   }
 
-  static pw.Widget _buildSummaryRow(String label, dynamic value, {bool isBold = false, PdfColor? customColor}) {
-    String valStr = value is double ? "INR ${value.toStringAsFixed(2)}" : value.toString();
+  static pw.Widget _buildSummaryRow(
+    String label,
+    dynamic value, {
+    bool isBold = false,
+    PdfColor? customColor,
+  }) {
+    String valStr = value is double
+        ? "INR ${value.toStringAsFixed(2)}"
+        : value.toString();
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: 10, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, color: customColor)),
-          pw.Text(valStr, style: pw.TextStyle(fontSize: 10, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, color: customColor)),
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: customColor,
+            ),
+          ),
+          pw.Text(
+            valStr,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: customColor,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  static Future<void> showPrintOptions(BuildContext context, Map<String, dynamic> booking) async {
+  static Future<void> showPrintOptions(
+    BuildContext context,
+    Map<String, dynamic> booking,
+  ) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Print Receipt", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Print Receipt",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text("Select the receipt format you wish to generate."),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         actions: [

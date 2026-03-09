@@ -113,19 +113,32 @@ class ReportService {
                   DateTime? latestCheckOut;
                   
                   for (var b in groupBookings) {
-                    final category = b['category'] ?? '';
-                    final capacity = b['capacity'] ?? '';
                     final people = b['totalPeople'] as int? ?? 1;
                     totalPeople += people;
                     
-                    final unitsForThisBooking = b['unitNumbers'] as List? ?? (b['unitNumber'] != null ? [b['unitNumber']] : []);
-                    
-                    for (var unitNumber in unitsForThisBooking) {
-                      var unitText = FormatUtils.formatUnit(category, unitNumber.toString());
-                      if (capacity.isNotEmpty && capacity != '0') {
-                        unitText += ' ($capacity)';
+                    final items = b['bookingItems'] as List?;
+                    if (items != null && items.isNotEmpty) {
+                      for (var item in items) {
+                        final cat = item['category'] ?? '';
+                        final cap = item['capacity'] ?? '';
+                        final units = item['units'] as List? ?? [];
+                        for (var u in units) {
+                          var unitText = FormatUtils.formatUnit(cat, u.toString());
+                          if (cap.isNotEmpty && cap != '0') unitText += ' ($cap)';
+                          unitLines.add(unitText);
+                        }
                       }
-                      unitLines.add(unitText);
+                    } else {
+                      // Legacy or single-item fallback
+                      final category = b['category'] ?? '';
+                      final capacity = b['capacity'] ?? '';
+                      final unitsForThisBooking = b['unitNumbers'] as List? ?? (b['unitNumber'] != null ? [b['unitNumber']] : []);
+                      
+                      for (var unitNumber in unitsForThisBooking) {
+                        var unitText = FormatUtils.formatUnit(category, unitNumber.toString());
+                        if (capacity.isNotEmpty && capacity != '0') unitText += ' ($capacity)';
+                        unitLines.add(unitText);
+                      }
                     }
                     
                     // Track earliest check-in and latest check-out
