@@ -15,7 +15,7 @@ class ReceiptService {
       "Shirol Janapur, road, Kaulkhed, Udgir, Maharashtra 413517";
   static const String resortContact = "+91 9022617734";
   static const String resortEmail = "shivamresort8000@gmail.com";
-  static const String resortGST = "27BClPP1218GIZP";
+  static const String resortGST = "27BCIPP1218G1ZP";
 
   static Future<void> generateAndPrintReceipt(
     Map<String, dynamic> booking, {
@@ -28,8 +28,12 @@ class ReceiptService {
     final idProof = booking['idProof'] ?? 'N/A';
     final unitNumber = booking['unitNumber']?.toString() ?? 'N/A';
     final category = booking['category'] ?? 'N/A';
-    final bookingId =
-        booking['id']?.toString() ?? booking['bookingId']?.toString() ?? 'N/A';
+    
+    // Receipt Number logic: Use the new structured ID if present, else fallback
+    final rawBookingId = booking['id']?.toString() ?? booking['bookingId']?.toString() ?? 'N/A';
+    final customReceiptNumber = booking['receiptNumber']?.toString();
+    final displayReceiptNumber = customReceiptNumber ?? 
+        'RE-${rawBookingId.length > 6 ? rawBookingId.substring(rawBookingId.length - 6).toUpperCase() : rawBookingId.toUpperCase()}';
 
     // Dates — pick the best available timestamps
     final reportingDate = (booking['reportingDate'] as Timestamp?)?.toDate();
@@ -77,22 +81,32 @@ class ReceiptService {
       foodTotal += (item['price'] as num?)?.toDouble() ?? 0.0;
     }
 
+    final isCheckedOut =
+        booking['status'] == 'checked-out' || booking['status'] == 'cleaning';
+    final isConfirmed = booking['status'] == 'occupied' || isCheckedOut;
+
     // Payments
     final advance = (booking['advancePayment'] as num?)?.toDouble() ?? 0.0;
     final remainingRent = (booking['remainingRent'] as num?)?.toDouble() ?? 0.0;
-    final advanceMethod = booking['paymentMethod'] ?? 'N/A';
-    final checkoutMode = booking['paymentMode'] ?? 'N/A';
+    final advanceMethod = booking['paymentMethod'] ?? 'CASH';
+    final checkoutMode = booking['paymentMode'] ?? (isCheckedOut ? (booking['paymentMethod'] ?? 'CASH') : 'N/A');
     final bookingItems = (booking['bookingItems'] as List?) ?? [];
 
     // Calculate room rent total from items if available
     double calculatedRoomRent = 0.0;
+    double calculatedOtherServices = 0.0;
     double calculatedGst = 0.0;
     double calculatedDiscount = 0.0;
     if (bookingItems.isNotEmpty) {
       for (var item in bookingItems) {
-        calculatedRoomRent += (item['package'] as num?)?.toDouble() ?? 0.0;
-        calculatedGst += (item['gst'] as num?)?.toDouble() ?? 0.0;
-        calculatedDiscount += (item['discount'] as num?)?.toDouble() ?? 0.0;
+        if (item['category'] == 'Other Service' || item['category'] == 'Extra Bed') {
+          calculatedOtherServices += (item['package'] as num?)?.toDouble() ?? 0.0;
+          calculatedGst += (item['gst'] as num?)?.toDouble() ?? 0.0;
+        } else {
+          calculatedRoomRent += (item['package'] as num?)?.toDouble() ?? 0.0;
+          calculatedGst += (item['gst'] as num?)?.toDouble() ?? 0.0;
+          calculatedDiscount += (item['discount'] as num?)?.toDouble() ?? 0.0;
+        }
       }
     }
 
@@ -100,6 +114,7 @@ class ReceiptService {
         ? calculatedRoomRent
         : ((booking['roomRent'] as num?)?.toDouble() ??
               (advance + remainingRent));
+    final otherServicesTotal = calculatedOtherServices;
     final gstAmount = bookingItems.isNotEmpty
         ? calculatedGst
         : ((booking['gstAmount'] as num?)?.toDouble() ?? 0.0);
@@ -113,10 +128,6 @@ class ReceiptService {
         (booking['grandTotal'] as num?)?.toDouble() ??
         (baseTotal - discountAmount + gstAmount + foodTotal);
     final balancePaidAtCheckout = grandTotal - advance;
-
-    final isCheckedOut =
-        booking['status'] == 'checked-out' || booking['status'] == 'cleaning';
-    final isConfirmed = booking['status'] == 'occupied' || isCheckedOut;
 
     pdf.addPage(
       pw.Page(
@@ -156,7 +167,7 @@ class ReceiptService {
                           color: PdfColors.grey700,
                         ),
                       ),
-                      if (withGST || gstAmount > 0)
+                      if (withGST)
                         pw.Text(
                           "GSTIN: $resortGST",
                           style: pw.TextStyle(
@@ -189,7 +200,7 @@ class ReceiptService {
                       ),
                       pw.SizedBox(height: 5),
                       pw.Text(
-                        "Receipt #: RE-${bookingId.length > 6 ? bookingId.substring(bookingId.length - 6).toUpperCase() : bookingId.toUpperCase()}",
+                        "Receipt #: $displayReceiptNumber",
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
@@ -514,39 +525,34 @@ class ReceiptService {
                     width: 200,
                     child: pw.Column(
                       children: [
-                        _buildSummaryRow("Total Package", roomRent),
+                        _buildSummaryRow("TOTAL PACKAGE", roomRent),
                         if (discountAmount > 0)
                           _buildSummaryRow(
-                            "Total Discount",
-                            "-₹${discountAmount.toStringAsFixed(2)}",
+                            "Discount",
+                            "-Rs ${discountAmount.toStringAsFixed(2)}",
                             customColor: PdfColors.red,
                           ),
                         if (gstAmount > 0)
                           _buildSummaryRow("Total GST", gstAmount),
-                        if (foodTotal > 0)
-                          _buildSummaryRow("Food & Services", foodTotal),
-                        pw.Divider(color: PdfColors.grey300),
                         _buildSummaryRow(
-                          "GRAND TOTAL",
-                          grandTotal,
-                          isBold: true,
-                        ),
-                        pw.SizedBox(height: 10),
-                        _buildSummaryRow(
-                          "Advance Paid ($advanceMethod)",
+                          "ADVANCE PAYMENT (${advanceMethod.toUpperCase()})",
                           advance,
                         ),
                         if (isCheckedOut)
                           _buildSummaryRow(
-                            "Final Payment ($checkoutMode)",
+                            "REMAINING PAYMENT (${checkoutMode.toUpperCase()})",
                             remainingRent,
                           ),
                         if (!isCheckedOut)
-                          _buildSummaryRow("Balance Remaining", remainingRent),
-                        pw.Divider(color: PdfColors.grey200),
+                          _buildSummaryRow("BALANCE REMAINING", remainingRent),
+                        if (foodTotal > 0)
+                          _buildSummaryRow("FOOD EXPENSE", foodTotal),
+                        if (otherServicesTotal > 0)
+                          _buildSummaryRow("OTHER SERVICES", otherServicesTotal),
+                        pw.Divider(color: PdfColors.grey300),
                         _buildSummaryRow(
-                          "Total Amount Paid",
-                          (isCheckedOut ? grandTotal : advance),
+                          "GRAND TOTAL",
+                          grandTotal,
                           isBold: true,
                         ),
                         pw.SizedBox(height: 8),
@@ -561,7 +567,7 @@ class ReceiptService {
                           child: pw.Center(
                             child: pw.Text(
                               isConfirmed
-                                  ? "PAYMENT STATUS: PAID (PARTIAL/FULL)"
+                                  ? "PAYMENT STATUS: PAID"
                                   : "PAYMENT STATUS: DUE",
                               style: pw.TextStyle(
                                 fontSize: 10,

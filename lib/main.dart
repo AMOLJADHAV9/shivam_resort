@@ -18,6 +18,10 @@ final messengerKey = GlobalKey<ScaffoldMessengerState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     // Initialize window manager for desktop
     await windowManager.ensureInitialized();
@@ -34,10 +38,6 @@ void main() async {
       await windowManager.focus();
     });
   }
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   runApp(const ProviderScope(child: MyApp()));
 }
 

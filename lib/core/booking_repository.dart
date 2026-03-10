@@ -3,6 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class BookingRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  Future<String> _getNextReceiptNumber() async {
+    final counterRef = _firestore.collection('counters').doc('receipts');
+    
+    // Using standard get and set instead of runTransaction to avoid 
+    // the known Windows Firebase SDK background thread crash.
+    final snapshot = await counterRef.get();
+    
+    int nextNumber = 1;
+    if (snapshot.exists) {
+      nextNumber = ((snapshot.data()?['currentNumber'] ?? 0) as int) + 1;
+    }
+    
+    await counterRef.set({'currentNumber': nextNumber}, SetOptions(merge: true));
+    
+    // Format the number to be e.g. "001", "002"... "999", "1000"
+    final formattedNumber = nextNumber.toString().padLeft(3, '0');
+    return 'SHRE$formattedNumber';
+  }
+
   // Stream of active bookings to track unit statuses (plus cleaning buffer)
   Stream<List<Map<String, dynamic>>> watchActiveBookings() {
     return _firestore
@@ -81,7 +100,11 @@ class BookingRepository {
       final finalUnitNumbers = unitNumbers ?? (unitNumber != null ? [unitNumber] : []);
       final primaryUnit = finalUnitNumbers.isNotEmpty ? finalUnitNumbers.first : unitNumber;
 
+      // Generate the new sequential receipt number
+      final receiptNumber = await _getNextReceiptNumber();
+
       await _firestore.collection('bookings').add({
+        'receiptNumber': receiptNumber,
         'customerName': customerName,
         'phone': phone,
         'customerGst': customerGst,

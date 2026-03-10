@@ -87,9 +87,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
       "Magic Guest House - 3 Bed Cottage": [505, 506, 507, 508],
     },
     "Lodging Deluxe": {
-      "Vishva Residency - 6 Bed Hall": ["009", "010", "109", "110"],
-      "Vishva Residency - 2 Bed Room": ["003", "004", "103", "104"],
-      "Vishva Residency - 3 Bed Room": [
+      "Vishwa Residency(Dormetory) - 6 Bed Hall": ["009", "010", "109", "110"],
+      "Vishwa Residency - 2 Bed Room": ["003", "004", "103", "104"],
+      "Vishwa Residency - 3 Bed Room": [
         "001",
         "002",
         "005",
@@ -105,18 +105,18 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
         "111",
       ],
     },
-    "Dormitory": {
+    "Dormetory": {
       "Party Hub - 11 Bed Hall": 1,
       "Magic Guest House - 20 Bed Hall": 1,
     },
     "Banquet Hall (AC)": {
-      "Central Vistara - 300-400 Capacity": 1,
-      "Green Orchid - 100-200 Capacity": 2,
+      "Central Vista - 300-400 Capacity": 1,
+      "Green Archid - 100-200 Capacity": 2,
     },
     "Lawn": {
       "Vanila Lawn - 50 People": 1,
-      "Bombaya Lawn - 250-300 People": 1,
-      "Shivamji Lawn - 2000-2500 People": 1,
+      "Bambooya Lawn - 250-300 People": 1,
+      "Shivam Lawn - 2000-2500 People": 1,
     },
     "Function Hall": {
       "Shivam Function - 800-1200 Capacity": 1,
@@ -152,19 +152,22 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
     // Extra Bed state
     final extraBedCountController = TextEditingController(text: "1");
     final extraBedChargeController = TextEditingController(text: "500");
+    final extraBedGstController = TextEditingController(text: "0");
 
     // Other Services state
     final otherServiceNameController = TextEditingController();
     final otherServiceChargeController = TextEditingController();
+    final otherServiceGstController = TextEditingController(text: "0");
 
     void updateRemaining() {
       final rent = double.tryParse(localRentController.text) ?? 0;
       final adv = double.tryParse(localAdvController.text) ?? 0;
-      final gst = double.tryParse(localGstController.text) ?? 0;
+      final gstPercent = double.tryParse(localGstController.text) ?? 0;
+      final gstAmount = (rent * gstPercent) / 100;
       final discountPercent =
           double.tryParse(localDiscountController.text) ?? 0;
       final discountAmount = (rent * discountPercent) / 100;
-      localRemController.text = (rent - adv - discountAmount + gst)
+      localRemController.text = (rent - adv - discountAmount + gstAmount)
           .toStringAsFixed(0);
     }
 
@@ -925,7 +928,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     controller: localGstController,
                                     keyboardType: TextInputType.number,
                                     decoration: const InputDecoration(
-                                      labelText: "GST (₹)",
+                                      labelText: "GST (%)",
                                       isDense: true,
                                     ),
                                   ),
@@ -982,8 +985,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   0;
                               final adv =
                                   double.tryParse(localAdvController.text) ?? 0;
-                              final gst =
+                              final gstPercent =
                                   double.tryParse(localGstController.text) ?? 0;
+                              final gstAmount = (rent * gstPercent) / 100;
                               final discountPercent =
                                   double.tryParse(
                                     localDiscountController.text,
@@ -993,7 +997,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   (rent * discountPercent) / 100;
                               final rem =
                                   double.tryParse(localRemController.text) ??
-                                  (rent - adv - discountAmount + gst);
+                                  (rent - adv - discountAmount + gstAmount);
 
                               setModalState(() {
                                 multiBookingItems.add({
@@ -1002,10 +1006,10 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   'units': localUnits.toList(),
                                   'package': rent,
                                   'advance': adv,
-                                  'gst': gst,
+                                  'gst': gstAmount,
                                   'discount': discountAmount,
                                   'remaining': rem,
-                                  'total': rent - discountAmount + gst,
+                                  'total': rent - discountAmount + gstAmount,
                                 });
                                 // Clear local inputs for next item
                                 localCategory = null;
@@ -1081,6 +1085,18 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: extraBedGstController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: "GST (%)",
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -1097,6 +1113,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       extraBedChargeController.text,
                                     ) ??
                                     0.0;
+                                final gstPercent = 
+                                    double.tryParse(
+                                      extraBedGstController.text,
+                                    ) ??
+                                    0.0;
                                 if (count <= 0) {
                                   messengerKey.currentState?.showSnackBar(
                                     const SnackBar(
@@ -1108,6 +1129,8 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   return;
                                 }
                                 final totalCharge = count * chargePerBed;
+                                final totalGst = (totalCharge * gstPercent) / 100;
+                                final totalPkg = totalCharge + totalGst;
 
                                 setModalState(() {
                                   multiBookingItems.add({
@@ -1116,14 +1139,15 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     'units': ['$count Bed(s)'],
                                     'package': totalCharge,
                                     'advance': 0.0,
-                                    'gst': 0.0,
+                                    'gst': totalGst,
                                     'discount': 0.0,
-                                    'remaining': totalCharge,
-                                    'total': totalCharge,
+                                    'remaining': totalPkg,
+                                    'total': totalPkg,
                                   });
                                   // Reset to defaults for convenience
                                   extraBedCountController.text = "1";
                                   extraBedChargeController.text = "500";
+                                  extraBedGstController.text = "0";
                                 });
                               },
                               icon: const Icon(Icons.bed, size: 18),
@@ -1139,6 +1163,7 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                     ),
 
                   if (localCategory == "Dormitory" ||
+                      localCategory == "Dormetory" ||
                       localCategory == "Banquet Hall (AC)" ||
                       localCategory == "Lawn" ||
                       localCategory == "Function Hall" ||
@@ -1189,6 +1214,18 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: otherServiceGstController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: "GST (%)",
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -1202,6 +1239,11 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                       otherServiceChargeController.text,
                                     ) ??
                                     0.0;
+                                final serviceGstPercent = 
+                                    double.tryParse(
+                                      otherServiceGstController.text,
+                                    ) ?? 
+                                    0.0;
                                 if (name.isEmpty || charge <= 0) {
                                   messengerKey.currentState?.showSnackBar(
                                     const SnackBar(
@@ -1213,6 +1255,9 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                   return;
                                 }
 
+                                final serviceGstAmount = (charge * serviceGstPercent) / 100;
+                                final totalServicePrice = charge + serviceGstAmount;
+
                                 setModalState(() {
                                   multiBookingItems.add({
                                     'category': 'Other Service',
@@ -1220,14 +1265,15 @@ class _StaffDashboardState extends ConsumerState<StaffDashboard> {
                                     'units': [name],
                                     'package': charge,
                                     'advance': 0.0,
-                                    'gst': 0.0,
+                                    'gst': serviceGstAmount,
                                     'discount': 0.0,
-                                    'remaining': charge,
-                                    'total': charge,
+                                    'remaining': totalServicePrice,
+                                    'total': totalServicePrice,
                                   });
                                   // Reset
                                   otherServiceNameController.clear();
                                   otherServiceChargeController.clear();
+                                  otherServiceGstController.text = "0";
                                 });
                               },
                               icon: const Icon(
